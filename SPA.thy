@@ -244,7 +244,7 @@ next
       then have \<open>semantics e f g (Pre i l) \<longleftrightarrow>
           semantics_term e f (hd l) = semantics_term e f (hd (tl l))\<close>
         by simp
-      also have \<open>... \<longleftrightarrow>
+      also have \<open>\<dots> \<longleftrightarrow>
           semantics_term (e(x := v)) f (hd l) = semantics_term (e(x := v)) f (hd (tl l))\<close>
         using map'(1) fresh occurs_in_list.simps(2) eq list.case_eq_if list.collapse
         unfolding length2_def
@@ -256,7 +256,7 @@ next
       assume not_eq: \<open>\<not> (i = STR ''='' \<and> length2 l)\<close>
       then have \<open>semantics e f g (Pre i l) \<longleftrightarrow> g i (semantics_list e f l)\<close>
         by simp iprover
-      also have \<open>... \<longleftrightarrow> g i (semantics_list (e(x := v)) f l)\<close>
+      also have \<open>\<dots> \<longleftrightarrow> g i (semantics_list (e(x := v)) f l)\<close>
         using map'(2) fresh
         by metis
       finally show ?thesis
@@ -659,10 +659,10 @@ code_reflect
 
 ML_file \<open>SPA.ML\<close>
 
-ML_val {* auto "A ==> A" *}
+ML_val \<open> auto "A ==> A" \<close>
 
-ML_val {* auto "exists x. D(x) ==> forall x. D(x)" *}
+ML_val \<open> auto "exists x. D(x) ==> forall x. D(x)" \<close>
 
-ML_val {* auto "(forall x. ~R(x) ==> R(f(x))) ==> exists x. R(x) /\\ R(f(f(x)))" *}
+ML_val \<open> auto "(forall x. ~R(x) ==> R(f(x))) ==> exists x. R(x) /\\ R(f(f(x)))" \<close>
 
 end
