@@ -11,10 +11,10 @@ section \<open>Syntax of First-Order Logic\<close>
 
 type_synonym id = String.literal
 
-datatype tm = Var id | Fn id "tm list"
+datatype tm = Var id | Fun id "tm list"
 
-datatype fm = Truth | Falsity | Rel id "tm list" | Imp fm fm | Iff fm fm | And fm fm | Or fm fm |
-    Not fm | Exists id fm | Forall id fm
+datatype fm = Truth | Falsity | Pre id "tm list" | Imp fm fm | Iff fm fm | Con fm fm | Dis fm fm |
+    Neg fm | Exi id fm | Uni id fm
 
 section \<open>Definition of Rules and Axioms on Formulas\<close>
 
@@ -22,12 +22,12 @@ abbreviation (input) "fail \<equiv> Truth"
 
 definition zip_eq :: "tm list \<Rightarrow> tm list \<Rightarrow> fm list"
 where
-  "zip_eq l l' \<equiv> map (\<lambda>(t, t'). Rel (STR ''='') [t, t']) (zip l l')"
+  "zip_eq l l' \<equiv> map (\<lambda>(t, t'). Pre (STR ''='') [t, t']) (zip l l')"
 
 primrec occurs_in :: "id \<Rightarrow> tm \<Rightarrow> bool" and occurs_in_list :: "id \<Rightarrow> tm list \<Rightarrow> bool"
 where
   "occurs_in i (Var x) = (i = x)" |
-  "occurs_in i (Fn _ l) = occurs_in_list i l" |
+  "occurs_in i (Fun _ l) = occurs_in_list i l" |
   "occurs_in_list _ [] = False" |
   "occurs_in_list i (h # t) = (occurs_in i h \<or> occurs_in_list i t)"
 
@@ -35,14 +35,14 @@ primrec free_in :: "id \<Rightarrow> fm \<Rightarrow> bool"
 where
   "free_in _ Truth = False" |
   "free_in _ Falsity = False" |
-  "free_in i (Rel _ l) = occurs_in_list i l" |
+  "free_in i (Pre _ l) = occurs_in_list i l" |
   "free_in i (Imp p q) = (free_in i p \<or> free_in i q)" |
   "free_in i (Iff p q) = (free_in i p \<or> free_in i q)" |
-  "free_in i (And p q) = (free_in i p \<or> free_in i q)" |
-  "free_in i (Or p q) = (free_in i p \<or> free_in i q)" |
-  "free_in i (Not p) = free_in i p" |
-  "free_in i (Exists x p) = (i \<noteq> x \<and> free_in i p)" |
-  "free_in i (Forall x p) = (i \<noteq> x \<and> free_in i p)"
+  "free_in i (Con p q) = (free_in i p \<or> free_in i q)" |
+  "free_in i (Dis p q) = (free_in i p \<or> free_in i q)" |
+  "free_in i (Neg p) = free_in i p" |
+  "free_in i (Exi x p) = (i \<noteq> x \<and> free_in i p)" |
+  "free_in i (Uni x p) = (i \<noteq> x \<and> free_in i p)"
 
 primrec equal_length :: "tm list \<Rightarrow> tm list \<Rightarrow> bool"
 where
@@ -57,7 +57,7 @@ where
 
 definition gen' :: "id \<Rightarrow> fm \<Rightarrow> fm"
 where
-  "gen' x s \<equiv> Forall x s"
+  "gen' x s \<equiv> Uni x s"
 
 definition axiom_addimp' :: "fm \<Rightarrow> fm \<Rightarrow> fm"
 where
@@ -73,27 +73,27 @@ where
 
 definition axiom_allimp' :: "id \<Rightarrow> fm \<Rightarrow> fm \<Rightarrow> fm"
 where
-  "axiom_allimp' x p q \<equiv> Imp (Forall x (Imp p q)) (Imp (Forall x p) (Forall x q))"
+  "axiom_allimp' x p q \<equiv> Imp (Uni x (Imp p q)) (Imp (Uni x p) (Uni x q))"
 
 definition axiom_impall' :: "id \<Rightarrow> fm \<Rightarrow> fm"
 where
-  "axiom_impall' x p \<equiv> if \<not> free_in x p then (Imp p (Forall x p)) else fail"
+  "axiom_impall' x p \<equiv> if \<not> free_in x p then (Imp p (Uni x p)) else fail"
 
 definition axiom_existseq' :: "id \<Rightarrow> tm \<Rightarrow> fm"
 where
-  "axiom_existseq' x t \<equiv> if \<not> occurs_in x t then Exists x (Rel (STR ''='') [Var x, t]) else fail"
+  "axiom_existseq' x t \<equiv> if \<not> occurs_in x t then Exi x (Pre (STR ''='') [Var x, t]) else fail"
 
 definition axiom_eqrefl' :: "tm \<Rightarrow> fm"
 where
-  "axiom_eqrefl' t \<equiv> Rel (STR ''='') [t, t]"
+  "axiom_eqrefl' t \<equiv> Pre (STR ''='') [t, t]"
 
 definition axiom_funcong' :: "id \<Rightarrow> tm list \<Rightarrow> tm list \<Rightarrow> fm"
 where
-  "axiom_funcong' i l l' \<equiv> chain l l' (Rel (STR ''='') [Fn i l, Fn i l'])"
+  "axiom_funcong' i l l' \<equiv> chain l l' (Pre (STR ''='') [Fun i l, Fun i l'])"
 
 definition axiom_predcong' :: "id \<Rightarrow> tm list \<Rightarrow> tm list \<Rightarrow> fm"
 where
-  "axiom_predcong' i l l' \<equiv> chain l l' (Imp (Rel i l) (Rel i l'))"
+  "axiom_predcong' i l l' \<equiv> chain l l' (Imp (Pre i l) (Pre i l'))"
 
 definition axiom_iffimp1' :: "fm \<Rightarrow> fm \<Rightarrow> fm"
 where
@@ -113,19 +113,19 @@ where
 
 definition axiom_not' :: "fm \<Rightarrow> fm"
 where
-  "axiom_not' p \<equiv> Iff (Not p) (Imp p Falsity)"
+  "axiom_not' p \<equiv> Iff (Neg p) (Imp p Falsity)"
 
 definition axiom_and' :: "fm \<Rightarrow> fm \<Rightarrow> fm"
 where
-  "axiom_and' p q \<equiv> Iff (And p q) (Imp (Imp p (Imp q Falsity)) Falsity)"
+  "axiom_and' p q \<equiv> Iff (Con p q) (Imp (Imp p (Imp q Falsity)) Falsity)"
 
 definition axiom_or' :: "fm \<Rightarrow> fm \<Rightarrow> fm"
 where
-  "axiom_or' p q \<equiv> Iff (Or p q) (Not (And (Not p) (Not q)))"
+  "axiom_or' p q \<equiv> Iff (Dis p q) (Neg (Con (Neg p) (Neg q)))"
 
 definition axiom_exists' :: "id \<Rightarrow> fm \<Rightarrow> fm"
 where
-  "axiom_exists' x p \<equiv> Iff (Exists x p) (Not (Forall x (Not p)))"
+  "axiom_exists' x p \<equiv> Iff (Exi x p) (Neg (Uni x (Neg p)))"
 
 section \<open>Semantics of First-Order Logic\<close>
 
@@ -138,7 +138,7 @@ primrec \<comment> \<open>Semantics of terms\<close>
   semantics_list :: "(id \<Rightarrow> 'a) \<Rightarrow> (id \<Rightarrow> 'a list \<Rightarrow> 'a) \<Rightarrow> tm list \<Rightarrow> 'a list"
 where
   "semantics_term e _ (Var x) = e x" |
-  "semantics_term e f (Fn i l) = f i (semantics_list e f l)" |
+  "semantics_term e f (Fun i l) = f i (semantics_list e f l)" |
   "semantics_list _ _ [] = []" |
   "semantics_list e f (t # l) = semantics_term e f t # semantics_list e f l"
 
@@ -147,16 +147,16 @@ primrec \<comment> \<open>Semantics of formulas\<close>
 where
   "semantics _ _ _ Truth = True" |
   "semantics _ _ _ Falsity = False" |
-  "semantics e f g (Rel i l) = (if i = STR ''='' \<and> length2 l
+  "semantics e f g (Pre i l) = (if i = STR ''='' \<and> length2 l
       then (semantics_term e f (hd l) = semantics_term e f (hd (tl l)))
       else g i (semantics_list e f l))" |
   "semantics e f g (Imp p q) = (semantics e f g p \<longrightarrow> semantics e f g q)" |
   "semantics e f g (Iff p q) = (semantics e f g p \<longleftrightarrow> semantics e f g q)" |
-  "semantics e f g (And p q) = (semantics e f g p \<and> semantics e f g q)" |
-  "semantics e f g (Or p q) = (semantics e f g p \<or> semantics e f g q)" |
-  "semantics e f g (Not p) = (\<not> semantics e f g p)" |
-  "semantics e f g (Exists x p) = (\<exists>v. semantics (e(x := v)) f g p)" |
-  "semantics e f g (Forall x p) = (\<forall>v. semantics (e(x := v)) f g p)"
+  "semantics e f g (Con p q) = (semantics e f g p \<and> semantics e f g q)" |
+  "semantics e f g (Dis p q) = (semantics e f g p \<or> semantics e f g q)" |
+  "semantics e f g (Neg p) = (\<not> semantics e f g p)" |
+  "semantics e f g (Exi x p) = (\<exists>v. semantics (e(x := v)) f g p)" |
+  "semantics e f g (Uni x p) = (\<forall>v. semantics (e(x := v)) f g p)"
 
 section \<open>Definition of Proof System\<close>
 
@@ -233,15 +233,15 @@ next
   by simp
 next
   fix e i l
-  show "\<not> free_in x (Rel i l) \<Longrightarrow> semantics e f g (Rel i l) \<longleftrightarrow> semantics (e(x := v)) f g (Rel i l)"
+  show "\<not> free_in x (Pre i l) \<Longrightarrow> semantics e f g (Pre i l) \<longleftrightarrow> semantics (e(x := v)) f g (Pre i l)"
   proof -
-    assume assm: "\<not> free_in x (Rel i l)"
+    assume assm: "\<not> free_in x (Pre i l)"
     then have fresh: "\<not> occurs_in_list x l"
     by simp
-    show "semantics e f g (Rel i l) \<longleftrightarrow> semantics (e(x := v)) f g (Rel i l)"
+    show "semantics e f g (Pre i l) \<longleftrightarrow> semantics (e(x := v)) f g (Pre i l)"
     proof cases
       assume eq: "i = STR ''='' \<and> length2 l"
-      then have "semantics e f g (Rel i l) \<longleftrightarrow>
+      then have "semantics e f g (Pre i l) \<longleftrightarrow>
           semantics_term e f (hd l) = semantics_term e f (hd (tl l))"
       by simp
       also have "... \<longleftrightarrow>
@@ -254,7 +254,7 @@ next
       by simp
     next
       assume not_eq: "\<not> (i = STR ''='' \<and> length2 l)"
-      then have "semantics e f g (Rel i l) \<longleftrightarrow> g i (semantics_list e f l)"
+      then have "semantics e f g (Pre i l) \<longleftrightarrow> g i (semantics_list e f l)"
       by simp iprover
       also have "... \<longleftrightarrow> g i (semantics_list (e(x := v)) f l)"
       using map'(2) fresh
@@ -284,34 +284,34 @@ next
   fix p1 p2 e
   assume assm1: "\<not> free_in x p1 \<Longrightarrow> semantics e f g p1 \<longleftrightarrow> semantics (e(x := v)) f g p1" for e
   assume assm2: "\<not> free_in x p2 \<Longrightarrow> semantics e f g p2 \<longleftrightarrow> semantics (e(x := v)) f g p2" for e
-  show "\<not> free_in x (And p1 p2) \<Longrightarrow>
-      semantics e f g (And p1 p2) \<longleftrightarrow> semantics (e(x := v)) f g (And p1 p2)"
+  show "\<not> free_in x (Con p1 p2) \<Longrightarrow>
+      semantics e f g (Con p1 p2) \<longleftrightarrow> semantics (e(x := v)) f g (Con p1 p2)"
   using assm1 assm2
   by simp
 next
   fix p1 p2 e
   assume assm1: "\<not> free_in x p1 \<Longrightarrow> semantics e f g p1 \<longleftrightarrow> semantics (e(x := v)) f g p1" for e
   assume assm2: "\<not> free_in x p2 \<Longrightarrow> semantics e f g p2 \<longleftrightarrow> semantics (e(x := v)) f g p2" for e
-  show "\<not> free_in x (Or p1 p2) \<Longrightarrow>
-      semantics e f g (Or p1 p2) \<longleftrightarrow> semantics (e(x := v)) f g (Or p1 p2)"
+  show "\<not> free_in x (Dis p1 p2) \<Longrightarrow>
+      semantics e f g (Dis p1 p2) \<longleftrightarrow> semantics (e(x := v)) f g (Dis p1 p2)"
   using assm1 assm2
   by simp
 next
   fix p e
   assume "\<not> free_in x p \<Longrightarrow> semantics e f g p \<longleftrightarrow> semantics (e(x := v)) f g p" for e
-  then show "\<not> free_in x (Not p) \<Longrightarrow> semantics e f g (Not p) \<longleftrightarrow> semantics (e(x := v)) f g (Not p)"
+  then show "\<not> free_in x (Neg p) \<Longrightarrow> semantics e f g (Neg p) \<longleftrightarrow> semantics (e(x := v)) f g (Neg p)"
   by simp
 next
   fix x1 p e
   assume "\<not> free_in x p \<Longrightarrow> semantics e f g p \<longleftrightarrow> semantics (e(x := v)) f g p" for e
-  then show "\<not> free_in x (Exists x1 p) \<Longrightarrow>
-      semantics e f g (Exists x1 p) \<longleftrightarrow> semantics (e(x := v)) f g (Exists x1 p)"
+  then show "\<not> free_in x (Exi x1 p) \<Longrightarrow>
+      semantics e f g (Exi x1 p) \<longleftrightarrow> semantics (e(x := v)) f g (Exi x1 p)"
   by simp (metis fun_upd_twist fun_upd_upd)
 next
   fix x1 p e
   assume "\<not> free_in x p \<Longrightarrow> semantics e f g p \<longleftrightarrow> semantics (e(x := v)) f g p" for e
-  then show "\<not> free_in x (Forall x1 p) \<Longrightarrow>
-      semantics e f g (Forall x1 p) \<longleftrightarrow> semantics (e(x := v)) f g (Forall x1 p)"
+  then show "\<not> free_in x (Uni x1 p) \<Longrightarrow>
+      semantics e f g (Uni x1 p) \<longleftrightarrow> semantics (e(x := v)) f g (Uni x1 p)"
   by simp (metis fun_upd_twist fun_upd_upd)
 qed
 
@@ -385,13 +385,13 @@ qed
 
 lemma funcong:
   "equal_length l l' \<Longrightarrow>
-      semantics e f g (foldr Imp (zip_eq l l') (Rel (STR ''='') [Fn i l, Fn i l']))"
+      semantics e f g (foldr Imp (zip_eq l l') (Pre (STR ''='') [Fun i l, Fun i l']))"
 proof -
   assume assm: "equal_length l l'"
   show ?thesis
   proof cases
     assume "semantics_list e f l = semantics_list e f l'"
-    then have "semantics e f g (Rel (STR ''='') [Fn i l, Fn i l'])"
+    then have "semantics e f g (Pre (STR ''='') [Fun i l, Fun i l'])"
     using length2_def
     by simp
     then show ?thesis
@@ -407,7 +407,7 @@ qed
 
 lemma predcong:
   "equal_length l l' \<Longrightarrow>
-      semantics e f g (foldr Imp (zip_eq l l') (Imp (Rel i l) (Rel i l')))"
+      semantics e f g (foldr Imp (zip_eq l l') (Imp (Pre i l) (Pre i l')))"
 proof -
   assume assm: "equal_length l l'"
   show ?thesis
@@ -419,7 +419,7 @@ proof -
       then have "semantics_list e f [hd l, hd (tl l)] = semantics_list e f [hd l', hd (tl l')]"
       using eq length2_equiv
       by simp
-      then have "semantics e f g (Imp (Rel (STR ''='') l) (Rel (STR ''='') l'))"
+      then have "semantics e f g (Imp (Pre (STR ''='') l) (Pre (STR ''='') l'))"
       using eq
       by simp
       then show ?thesis
@@ -436,7 +436,7 @@ proof -
     show ?thesis
     proof cases
       assume "semantics_list e f l = semantics_list e f l'"
-      then have "semantics e f g (Imp (Rel i l) (Rel i l'))"
+      then have "semantics e f g (Imp (Pre i l) (Pre i l'))"
       using assm not_eq equal_length2
       by simp iprover
       then show ?thesis
@@ -649,9 +649,9 @@ section \<open>ML Code Reflection\<close>
 code_reflect
   Proven
 datatypes
-  tm = Var | Fn
+  tm = Var | Fun
 and
-  fm = Truth | Falsity | Rel | Imp | Iff | And | Or | Not | Exists | Forall
+  fm = Truth | Falsity | Pre | Imp | Iff | Con | Dis | Neg | Exi | Uni
 functions
   modusponens gen axiom_addimp axiom_distribimp axiom_doubleneg axiom_allimp axiom_impall
   axiom_existseq axiom_eqrefl axiom_funcong axiom_predcong axiom_iffimp1 axiom_iffimp2

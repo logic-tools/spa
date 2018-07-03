@@ -626,21 +626,21 @@ fun fm_ord at_ord fm1 fm2 =
     | (Truth,_)  =>  1
     | (_,Truth)  => ~1
 
-    | (Rel(ia,la), Rel(ib,lb)) => at_ord (Rl(ia,la)) (Rl(ib,lb))
-    | (Rel(_,_),_) => 1
-    | (_,Rel(_,_)) => ~1
+    | (Pre(ia,la), Pre(ib,lb)) => at_ord (Rl(ia,la)) (Rl(ib,lb))
+    | (Pre(_,_),_) => 1
+    | (_,Pre(_,_)) => ~1
 
-    | (Not a,Not b) => fm_ord at_ord a b
-    | (Not(_),_) => 1
-    | (_,Not(_)) => ~1
+    | (Neg a,Neg b) => fm_ord at_ord a b
+    | (Neg(_),_) => 1
+    | (_,Neg(_)) => ~1
 
-    | (And(a1,a2),And(b1,b2)) => fm_pair_ord at_ord (a1,a2) (b1,b2)
-    | (And(_,_),_) =>  1
-    | (_,And(_,_)) => ~1
+    | (Con(a1,a2),Con(b1,b2)) => fm_pair_ord at_ord (a1,a2) (b1,b2)
+    | (Con(_,_),_) =>  1
+    | (_,Con(_,_)) => ~1
 
-    | (Or(a1,a2),Or(b1,b2)) => fm_pair_ord at_ord (a1,a2) (b1,b2)
-    | (Or(_,_),_) =>  1
-    | (_,Or(_,_)) => ~1
+    | (Dis(a1,a2),Dis(b1,b2)) => fm_pair_ord at_ord (a1,a2) (b1,b2)
+    | (Dis(_,_),_) =>  1
+    | (_,Dis(_,_)) => ~1
 
     | (Imp(a1,a2),Imp(b1,b2)) => fm_pair_ord at_ord (a1,a2) (b1,b2)
     | (Imp(_,_),_) =>  1
@@ -650,11 +650,11 @@ fun fm_ord at_ord fm1 fm2 =
     | (Iff(_,_),_) =>  1
     | (_,Iff(_,_)) => ~1
 
-    | (Forall(x1,a),Forall(x2,b)) => fm_quant_ord at_ord (x1,a) (x2,b)
-    | (Forall (_,_), _) => 1
-    | (_, Forall (_,_)) => ~1
+    | (Uni(x1,a),Uni(x2,b)) => fm_quant_ord at_ord (x1,a) (x2,b)
+    | (Uni (_,_), _) => 1
+    | (_, Uni (_,_)) => ~1
 
-    | (Exists(x1,a),Exists(x2,b)) => fm_quant_ord at_ord (x1,a) (x2,b)
+    | (Exi(x1,a),Exi(x2,b)) => fm_quant_ord at_ord (x1,a) (x2,b)
 and fm_pair_ord at_ord (a1,a2) (b1,b2) =
     case fm_ord at_ord a1 b1 of
      0 => fm_ord at_ord a2 b2
@@ -710,12 +710,12 @@ fun parse_atomic_formula (ifn,afn) vs inp =
   | "true"::rest => (Truth,rest)
   | "("::rest => ( (ifn vs inp) handle Fail _ =>
                   parse_bracketed (parse_formula (ifn,afn) vs) ")" rest)
-  | "~"::rest => papply (fn p => Not p)
+  | "~"::rest => papply (fn p => Neg p)
                         (parse_atomic_formula (ifn,afn) vs rest)
   | "forall"::x::rest =>
-        parse_quant (ifn,afn) (x::vs) (fn (x,p) => Forall(x,p)) x rest
+        parse_quant (ifn,afn) (x::vs) (fn (x,p) => Uni(x,p)) x rest
   | "exists"::x::rest =>
-        parse_quant (ifn,afn) (x::vs) (fn (x,p) => Exists(x,p)) x rest
+        parse_quant (ifn,afn) (x::vs) (fn (x,p) => Exi(x,p)) x rest
   | _ => afn vs inp
 
 and parse_quant (ifn,afn) vs qcon x inp =
@@ -729,8 +729,8 @@ and parse_quant (ifn,afn) vs qcon x inp =
 and parse_formula (ifn,afn) vs inp =
    parse_right_infix "<=>" (fn (p,q) => Iff(p,q))
      (parse_right_infix "==>" (fn (p,q) => Imp(p,q))
-         (parse_right_infix "\\/" (fn (p,q) => Or(p,q))
-             (parse_right_infix "/\\" (fn (p,q) => And(p,q))
+         (parse_right_infix "\\/" (fn (p,q) => Dis(p,q))
+             (parse_right_infix "/\\" (fn (p,q) => Con(p,q))
                   (parse_atomic_formula (ifn,afn) vs)))) inp;
 
 (* ------------------------------------------------------------------------- *)
@@ -745,17 +745,17 @@ fun bracket p n f x y = (
 
 fun strip_quant fm =
     case fm of
-      Forall (x, (Forall (y, p))) =>
-        let val (xs, q) = strip_quant (Forall (y, p)) in
+      Uni (x, (Uni (y, p))) =>
+        let val (xs, q) = strip_quant (Uni (y, p)) in
         ((x :: xs), q)
         end
-    | Exists (x, (Exists (y, p))) =>
-        let val (xs, q) = strip_quant (Exists (y, p)) in
+    | Exi (x, (Exi (y, p))) =>
+        let val (xs, q) = strip_quant (Exi (y, p)) in
         ((x :: xs), q)
         end
-    | Forall (x, p) =>
+    | Uni (x, p) =>
         ([x],p)
-    | Exists (x, p) =>
+    | Exi (x, p) =>
         ([x],p)
     | _ =>
         ([], fm);
@@ -767,21 +767,21 @@ fun print_formula_aux pfn =
             print_string "false"
         | Truth =>
             print_string "true"
-        | Rel (i,l) =>
+        | Pre (i,l) =>
             pfn pr (Rl(i,l))
-        | Not p =>
+        | Neg p =>
             bracket (pr > 10) 1 (print_prefix 10) "~" p
-        | And (p, q) =>
+        | Con (p, q) =>
             bracket (pr > 8) 0 (print_infix 8 "/\\") p q
-        | Or (p, q) =>
+        | Dis (p, q) =>
             bracket (pr > 6) 0 (print_infix 6 "\\/") p q
         | Imp (p, q) =>
             bracket (pr > 4) 0 (print_infix 4 "==>") p q
         | Iff (p, q) =>
             bracket (pr > 2) 0 (print_infix 2 "<=>") p q
-        | Forall (x, p) =>
+        | Uni (x, p) =>
             bracket (pr > 0) 2 print_qnt "forall" (strip_quant fm)
-        | Exists (x, p) =>
+        | Exi (x, p) =>
             bracket (pr > 0) 2 print_qnt "exists" (strip_quant fm)
 
     and print_qnt qname (bvs, bod) = (
@@ -815,17 +815,17 @@ fun print_qformula_aux pfn fm = (
 
 fun print_qformula pfn fm = (print_qformula_aux pfn fm; print_flush ());
 
-fun mk_and p q = And (p, q)
+fun mk_and p q = Con (p, q)
 
-fun mk_or p q = Or (p, q)
+fun mk_or p q = Dis (p, q)
 
 fun mk_imp p q = Imp (p, q)
 
 fun mk_iff p q = Iff (p, q)
 
-fun mk_forall x p = Forall (x, p)
+fun mk_forall x p = Uni (x, p)
 
-fun mk_exists x p = Exists (x, p)
+fun mk_exists x p = Exi (x, p)
 
 (* ------------------------------------------------------------------------- *)
 (* Destructors.                                                              *)
@@ -835,16 +835,16 @@ fun dest_iff fm =
   case fm of Iff(p,q) => (p,q) | _ => raise Fail "dest_iff";
 
 fun dest_and fm =
-  case fm of And(p,q) => (p,q) | _ => raise Fail ("dest_and");
+  case fm of Con(p,q) => (p,q) | _ => raise Fail ("dest_and");
 
 fun conjuncts fm =
-  case fm of And(p,q) => conjuncts p @ conjuncts q | _ => [fm];
+  case fm of Con(p,q) => conjuncts p @ conjuncts q | _ => [fm];
 
 fun dest_or fm =
-  case fm of Or(p,q) => (p,q) | _ => raise Fail "dest_or";
+  case fm of Dis(p,q) => (p,q) | _ => raise Fail "dest_or";
 
 fun disjuncts fm =
-  case fm of Or(p,q) => disjuncts p @ disjuncts q | _ => [fm];
+  case fm of Dis(p,q) => disjuncts p @ disjuncts q | _ => [fm];
 
 fun dest_imp fm =
   case fm of Imp(p,q) => (p,q) | _ => raise Fail "dest_imp";
@@ -858,14 +858,14 @@ fun consequent fm = snd (dest_imp fm);
 
 fun onatoms f fm =
   case fm of
-    Rel(i,l) => f (Rl(i,l))
-  | Not(p) => Not(onatoms f p)
-  | And(p,q) => And(onatoms f p,onatoms f q)
-  | Or(p,q) => Or(onatoms f p,onatoms f q)
+    Pre(i,l) => f (Rl(i,l))
+  | Neg(p) => Neg(onatoms f p)
+  | Con(p,q) => Con(onatoms f p,onatoms f q)
+  | Dis(p,q) => Dis(onatoms f p,onatoms f q)
   | Imp(p,q) => Imp(onatoms f p,onatoms f q)
   | Iff(p,q) => Iff(onatoms f p,onatoms f q)
-  | Forall(x,p) => Forall(x,onatoms f p)
-  | Exists(x,p) => Exists(x,onatoms f p)
+  | Uni(x,p) => Uni(x,onatoms f p)
+  | Exi(x,p) => Exi(x,onatoms f p)
   | _ => fm;
 
 (* ------------------------------------------------------------------------- *)
@@ -874,14 +874,14 @@ fun onatoms f fm =
 
 fun overatoms f fm b =
   case fm of
-    Rel(i,l) => f (Rl(i,l)) b
-  | Not(p) => overatoms f p b
-  | And(p,q) => overatoms f p (overatoms f q b)
-  | Or(p,q)  => overatoms f p (overatoms f q b)
+    Pre(i,l) => f (Rl(i,l)) b
+  | Neg(p) => overatoms f p b
+  | Con(p,q) => overatoms f p (overatoms f q b)
+  | Dis(p,q)  => overatoms f p (overatoms f q b)
   | Imp(p,q) => overatoms f p (overatoms f q b)
   | Iff(p,q) => overatoms f p (overatoms f q b)
-  | Forall(x,p) => overatoms f p b
-  | Exists(x,p) => overatoms f p b
+  | Uni(x,p) => overatoms f p b
+  | Exi(x,p) => overatoms f p b
   | _ => b;
 
 (* ------------------------------------------------------------------------- *)
@@ -919,7 +919,7 @@ fun t_ord t1 t2 =
       (Var x1, Var x2 ) => str_ord x1 x2
     | (Var _, _) => 1
     | (_, Var _) => ~1
-    | (Fn(f1,tl1),Fn(f2,tl2)) =>
+    | (Fun(f1,tl1),Fun(f2,tl2)) =>
        case str_ord f1 f2 of
          0 => tl_ord tl1 tl2
         |n => n
@@ -937,7 +937,7 @@ and tl_ord tl1 tl2 =
 fun t_hash t =
     case t of
       Var x => str_hash x
-    | Fn (f,tl) => Word.toIntX(Word.+(Word.*(0wx31,Word.fromInt(str_hash f)),
+    | Fun (f,tl) => Word.toIntX(Word.+(Word.*(0wx31,Word.fromInt(str_hash f)),
                                       Word.fromInt(list_hash t_hash tl)))
 ;
 
@@ -975,7 +975,7 @@ fun setify_ftp s = setify ftp_ord s;
 (* Special case of applying a subfunction to the top *terms*.                *)
 (* ------------------------------------------------------------------------- *)
 
-fun onformula f = onatoms(fn (Rl(p,a)) => Rel(p,List.map f a));
+fun onformula f = onatoms(fn (Rl(p,a)) => Pre(p,List.map f a));
 
 (* ------------------------------------------------------------------------- *)
 (* Parsing of terms.                                                         *)
@@ -987,21 +987,21 @@ fun parse_atomic_term vs inp =
   case inp of
     [] => raise Fail "term expected"
   | "("::rest => parse_bracketed (parse_term vs) ")" rest
-  | "-"::rest => papply (fn t => Fn("-",[t])) (parse_atomic_term vs rest)
-  | f::"("::")"::rest => (Fn(f,[]),rest)
+  | "-"::rest => papply (fn t => Fun("-",[t])) (parse_atomic_term vs rest)
+  | f::"("::")"::rest => (Fun(f,[]),rest)
   | f::"("::rest =>
-      papply (fn args => Fn(f,args))
+      papply (fn args => Fun(f,args))
              (parse_bracketed (parse_list "," (parse_term vs)) ")" rest)
   | a::rest =>
-      ((if is_const_name a andalso not(mem a vs) then Fn(a,[]) else Var a),rest)
+      ((if is_const_name a andalso not(mem a vs) then Fun(a,[]) else Var a),rest)
 
 and parse_term vs inp =
-  parse_right_infix "::" (fn (e1,e2) => Fn("::",[e1,e2]))
-    (parse_right_infix "+" (fn (e1,e2) => Fn("+",[e1,e2]))
-       (parse_left_infix "-" (fn (e1,e2) => Fn("-",[e1,e2]))
-          (parse_right_infix "*" (fn (e1,e2) => Fn("*",[e1,e2]))
-             (parse_left_infix "/" (fn (e1,e2) => Fn("/",[e1,e2]))
-                (parse_left_infix "^" (fn (e1,e2) => Fn("^",[e1,e2]))
+  parse_right_infix "::" (fn (e1,e2) => Fun("::",[e1,e2]))
+    (parse_right_infix "+" (fn (e1,e2) => Fun("+",[e1,e2]))
+       (parse_left_infix "-" (fn (e1,e2) => Fun("-",[e1,e2]))
+          (parse_right_infix "*" (fn (e1,e2) => Fun("*",[e1,e2]))
+             (parse_left_infix "/" (fn (e1,e2) => Fun("/",[e1,e2]))
+                (parse_left_infix "^" (fn (e1,e2) => Fun("^",[e1,e2]))
                    (parse_atomic_term vs)))))) inp;
 
 val parset = make_parser (parse_term []);
@@ -1013,7 +1013,7 @@ val parset = make_parser (parse_term []);
 fun parse_infix_atom vs inp =
   let val (tm,rest) = parse_term vs inp in
   if List.exists (nextin rest) ["=", "<", "<=", ">", ">="] then
-        papply (fn tm' => Rel(List.hd rest,[tm,tm']))
+        papply (fn tm' => Pre(List.hd rest,[tm,tm']))
                (parse_term vs (List.tl rest))
   else raise Fail ""
   end;
@@ -1021,12 +1021,12 @@ fun parse_infix_atom vs inp =
 fun parse_atom vs inp =
   (parse_infix_atom vs inp) handle Fail _ =>
   case inp of
-    p::"("::")"::rest => (Rel(p,[]),rest)
+    p::"("::")"::rest => (Pre(p,[]),rest)
   | p::"("::rest =>
-      papply (fn args => (Rel(p,args)))
+      papply (fn args => (Pre(p,args)))
              (parse_bracketed (parse_list "," (parse_term vs)) ")" rest)
   | p::rest =>
-      if p <> "(" then (Rel(p,[]),rest)
+      if p <> "(" then (Pre(p,[]),rest)
       else raise Fail "parse_atom"
   | _ => raise Fail "parse_atom";
 
@@ -1052,13 +1052,13 @@ fun <!| s |!> = secondary_parser s;
 fun print_term_aux prec fm =
   case fm of
     Var x => print_string x
-  | Fn("^",[tm1,tm2]) => print_infix_term_aux true prec 24 "^" tm1 tm2
-  | Fn("/",[tm1,tm2]) => print_infix_term_aux true prec 22 " /" tm1 tm2
-  | Fn("*",[tm1,tm2]) => print_infix_term_aux false prec 20 " *" tm1 tm2
-  | Fn("-",[tm1,tm2]) => print_infix_term_aux true prec 18 " -" tm1 tm2
-  | Fn("+",[tm1,tm2]) => print_infix_term_aux false prec 16 " +" tm1 tm2
-  | Fn("::",[tm1,tm2]) => print_infix_term_aux false prec 14 "::" tm1 tm2
-  | Fn(f,args) => print_fargs_aux f args
+  | Fun("^",[tm1,tm2]) => print_infix_term_aux true prec 24 "^" tm1 tm2
+  | Fun("/",[tm1,tm2]) => print_infix_term_aux true prec 22 " /" tm1 tm2
+  | Fun("*",[tm1,tm2]) => print_infix_term_aux false prec 20 " *" tm1 tm2
+  | Fun("-",[tm1,tm2]) => print_infix_term_aux true prec 18 " -" tm1 tm2
+  | Fun("+",[tm1,tm2]) => print_infix_term_aux false prec 16 " +" tm1 tm2
+  | Fun("::",[tm1,tm2]) => print_infix_term_aux false prec 14 "::" tm1 tm2
+  | Fun(f,args) => print_fargs_aux f args
 
 and print_fargs_aux f args = (
   print_string f;
@@ -1117,7 +1117,7 @@ fun print_fol_formula f = (print_fol_formula_aux f; print_flush ());
 fun fvt tm =
     case tm of
       Var x => [x]
-    | Fn (f, args) =>
+    | Fun (f, args) =>
         unions_str (List.map fvt args)
 ;
 
@@ -1125,30 +1125,30 @@ fun var fm =
     case fm of
       Falsity => []
     | Truth => []
-    | Rel (p, args) =>
+    | Pre (p, args) =>
         unions str_ord (List.map fvt args)
-    | Not p => var p
-    | And (p, q) => union_str (var p) (var q)
-    | Or  (p, q) => union_str (var p) (var q)
+    | Neg p => var p
+    | Con (p, q) => union_str (var p) (var q)
+    | Dis  (p, q) => union_str (var p) (var q)
     | Imp (p, q) => union_str (var p) (var q)
     | Iff (p, q) => union_str (var p) (var q)
-    | Forall (x, p) => insert_str x (var p)
-    | Exists (x, p) => insert_str x (var p)
+    | Uni (x, p) => insert_str x (var p)
+    | Exi (x, p) => insert_str x (var p)
 ;
 
 fun fv fm =
     case fm of
       Falsity => []
     | Truth => []
-    | Rel (p, args) =>
+    | Pre (p, args) =>
         unions_str (List.map fvt args)
-    | Not p => fv p
-    | And (p, q) => union_str (fv p) (fv q)
-    | Or  (p, q) => union_str (fv p) (fv q)
+    | Neg p => fv p
+    | Con (p, q) => union_str (fv p) (fv q)
+    | Dis  (p, q) => union_str (fv p) (fv q)
     | Imp (p, q) => union_str (fv p) (fv q)
     | Iff (p, q) => union_str (fv p) (fv q)
-    | Forall (x, p) => subtract_str (fv p) [x]
-    | Exists (x, p) => subtract_str (fv p) [x]
+    | Uni (x, p) => subtract_str (fv p) [x]
+    | Exi (x, p) => subtract_str (fv p) [x]
 ;
 
 (* ------------------------------------------------------------------------- *)
@@ -1158,7 +1158,7 @@ fun fv fm =
 fun tsubst sfn tm =
   case tm of
     Var x => tryapplyd_str sfn x tm
-  | Fn(f,args) => Fn(f,List.map (tsubst sfn) args);
+  | Fun(f,args) => Fun(f,List.map (tsubst sfn) args);
 
 fun variant x vars =
   if mem x vars then variant (x^"'") vars else x;
@@ -1171,21 +1171,21 @@ fun subst subfn fm =
     case fm of
       Falsity => Falsity
     | Truth => Truth
-    | Rel (p, args) =>
-        Rel (p, List.map (tsubst subfn) args)
-    | Not p =>
-        Not (subst subfn p)
-    | And (p, q) =>
-        And (subst subfn p, subst subfn q)
-    | Or (p, q) =>
-        Or  (subst subfn p, subst subfn q)
+    | Pre (p, args) =>
+        Pre (p, List.map (tsubst subfn) args)
+    | Neg p =>
+        Neg (subst subfn p)
+    | Con (p, q) =>
+        Con (subst subfn p, subst subfn q)
+    | Dis (p, q) =>
+        Dis  (subst subfn p, subst subfn q)
     | Imp (p, q) =>
         Imp (subst subfn p, subst subfn q)
     | Iff (p, q) =>
         Iff (subst subfn p, subst subfn q)
-    | Forall (x, p) =>
+    | Uni (x, p) =>
         substq subfn mk_forall x p
-    | Exists (x, p) =>
+    | Exi (x, p) =>
         substq subfn mk_exists x p
 and substq subfn quant x p =
     let val x' =
@@ -1211,7 +1211,7 @@ and substq subfn quant x p =
 fun funcs tm =
   case tm of
     Var x => []
-  | Fn(f,args) => itlist (union_sip o funcs) args [(f,List.length args)];
+  | Fun(f,args) => itlist (union_sip o funcs) args [(f,List.length args)];
 
 fun functions fm =
   atom_union_sip (fn (Rl(p,a)) => itlist (union_sip o funcs) a []) fm;
@@ -1225,7 +1225,7 @@ fun functions fm =
 fun istriv env x t =
   case t of
     Var y => y = x orelse defined_str env y andalso istriv env x (apply_str env y)
-  | Fn(f,args) => List.exists (istriv env x) args andalso raise Fail "cyclic";
+  | Fun(f,args) => List.exists (istriv env x) args andalso raise Fail "cyclic";
 
 (* ------------------------------------------------------------------------- *)
 (* Main unification procedure                                                *)
@@ -1234,7 +1234,7 @@ fun istriv env x t =
 fun unify env eqs =
   case eqs of
     [] => env
-  | (Fn(f,fargs),Fn(g,gargs))::oth =>
+  | (Fun(f,fargs),Fun(g,gargs))::oth =>
         if f = g andalso length fargs = length gargs
         then unify env (zip fargs gargs @ oth)
         else raise Fail "impossible unification"
@@ -1291,7 +1291,7 @@ fun deepen f n =
 fun term_match env eqs =
     case eqs of
       [] => env
-    | (Fn (f, fa), Fn(g, ga)) :: oth =>
+    | (Fun (f, fa), Fun(g, ga)) :: oth =>
         if (f = g andalso List.length fa = List.length ga) then
         term_match env (zip fa ga @ oth)
         else raise Fail "term_match"
@@ -1311,11 +1311,11 @@ fun term_match env eqs =
 (* First order logic with equality.                                          *)
 (* ========================================================================= *)
 
-fun mk_eq s t = Rel("=",[s,t]);
+fun mk_eq s t = Pre("=",[s,t]);
 
 fun dest_eq fm =
   case fm of
-    Rel("=",[s,t]) => (s,t)
+    Pre("=",[s,t]) => (s,t)
   | _ => raise Fail "dest_eq: not an equation";
 
 fun lhs eq = fst (dest_eq eq) and rhs eq = snd (dest_eq eq);
@@ -1329,7 +1329,7 @@ fun lhs eq = fst (dest_eq eq) and rhs eq = snd (dest_eq eq);
 fun termsize tm =
   case tm of
     Var x => 1
-  | Fn(f,args) => itlist (fn t => fn n => termsize t + n) args 1;
+  | Fun(f,args) => itlist (fn t => fn n => termsize t + n) args 1;
 
 "eqelim.sml";
 
@@ -1345,7 +1345,7 @@ fun replacet rfn tm =
   apply_t rfn tm
   handle Fail _ =>
   case tm of
-    Fn(f,args) => Fn(f,List.map (replacet rfn) args)
+    Fun(f,args) => Fun(f,List.map (replacet rfn) args)
   | _ => tm;
 
 "lcf.sml";
@@ -1674,7 +1674,7 @@ fun unshunt th =
 (* Produce |- (p <=> q) <=> (p ==> q) /\ (q ==> p)                           *)
 (* ------------------------------------------------------------------------- *)
 
-fun iff_def p q = (* Not in the book *)
+fun iff_def p q = (* Neg in the book *)
   let val th1 = and_pair (Imp(p,q)) (Imp(q,p))
       val th2 = imp_trans_chain [axiom_iffimp1 p q, axiom_iffimp2 p q] th1 in
   imp_antisym th2 (unshunt (axiom_impiff p q))
@@ -1693,11 +1693,11 @@ fun iff_def p q =
 fun expand_connective fm =
   case fm of
     Truth => axiom_true
-  | Not p => axiom_not p
-  | And(p,q) => axiom_and p q
-  | Or(p,q) => axiom_or p q
+  | Neg p => axiom_not p
+  | Con(p,q) => axiom_and p q
+  | Dis(p,q) => axiom_or p q
   | Iff(p,q) => iff_def p q
-  | Exists(x,p) => axiom_exists x p
+  | Exi(x,p) => axiom_exists x p
   | _ => raise Fail "expand_connective";
 
 fun eliminate_connective fm =
@@ -1801,10 +1801,10 @@ fun dest_disj fm = dest_imp fm;
 
 fun is_prop_lit p =
   case p of
-     Rel(_,_) => true
-   | Forall(_,_) => true
-   | Imp(Rel(_,_),Falsity) => true
-   | Imp(Forall(_),Falsity) => true
+     Pre(_,_) => true
+   | Uni(_,_) => true
+   | Imp(Pre(_,_),Falsity) => true
+   | Imp(Uni(_),Falsity) => true
    | _ => false ;
 
 fun lcfptab fms lits =
@@ -1881,7 +1881,7 @@ fun icongruence s t stm ttm =
   if stm = ttm then add_assum (mk_eq s t) (axiom_eqrefl stm)
   else if stm = s andalso ttm = t then imp_refl (mk_eq s t) else
   case (stm,ttm) of
-   (Fn(fs,sa),Fn(ft,ta)) =>
+   (Fun(fs,sa),Fun(ft,ta)) =>
         if fs = ft andalso length sa = length ta then
             let val ths = map2 (icongruence s t) sa ta
                 val ts = List.map (consequent o concl) ths in
@@ -1926,10 +1926,10 @@ fun exists_left_th x p q =
       val  q' = Imp(q,Falsity)
       val th1 = genimp x (imp_swap(imp_trans_th p q Falsity))
       val th2 = imp_trans th1 (gen_right_th x q' p')
-      val th3 = imp_swap(imp_trans_th q' (Forall(x,p')) Falsity)
+      val th3 = imp_swap(imp_trans_th q' (Uni(x,p')) Falsity)
       val th4 = imp_trans2 (imp_trans th2 th3) (axiom_doubleneg q)
       val th5 = imp_add_concl Falsity (genimp x (iff_imp2 (axiom_not p)))
-      val th6 = imp_trans (iff_imp1 (axiom_not (Forall(x,Not p)))) th5
+      val th6 = imp_trans (iff_imp1 (axiom_not (Uni(x,Neg p)))) th5
       val th7 = imp_trans (iff_imp1(axiom_exists x p)) th6 in
   imp_swap(imp_trans th7 (imp_swap th4))
   end;
@@ -1951,7 +1951,7 @@ fun exists_left x th =
 
 fun subspec th =
   case concl th of
-    Imp(e as Rel("=",[Var x,t]),Imp(p,q)) =>
+    Imp(e as Pre("=",[Var x,t]),Imp(p,q)) =>
         let val th1 = imp_trans (genimp x (imp_swap th))
                             (exists_left_th x e q) in
         modusponens (imp_swap th1) (axiom_existseq x t)
@@ -1966,7 +1966,7 @@ fun subspec th =
 
 fun subalpha th =
    case concl th of
-    Imp(Rel("=",[Var x,Var y]),Imp(p,q)) =>
+    Imp(Pre("=",[Var x,Var y]),Imp(p,q)) =>
         if x = y then genimp x (modusponens th (axiom_eqrefl(Var x)))
         else gen_right y (subspec th)
   | _ => raise Fail "subalpha: wrong sort of theorem";
@@ -1979,7 +1979,7 @@ fun subalpha th =
 fun isubst s t sfm tfm =
   if sfm = tfm then add_assum (mk_eq s t) (imp_refl tfm) else
   case (sfm,tfm) of
-    (Rel(p,sa),Rel(p',ta)) =>
+    (Pre(p,sa),Pre(p',ta)) =>
         if p = p' andalso List.length sa = List.length ta then
             let val ths = map2 (icongruence s t) sa ta
                 val (ls,rs) = unzip (List.map (dest_eq o consequent o concl) ths) in
@@ -1992,7 +1992,7 @@ fun isubst s t sfm tfm =
             val th2 = isubst s t sq tq in
         imp_trans_chain [th1, th2] (imp_mono_th sp tp sq tq)
         end
-  | (Forall(x,p),Forall(y,q)) =>
+  | (Uni(x,p),Uni(y,q)) =>
         if x = y then
           imp_trans (gen_right x (isubst s t p q)) (axiom_allimp x p q)
         else
@@ -2023,7 +2023,7 @@ fun isubst s t sfm tfm =
 
 fun alpha z fm =
   case fm of
-    Forall(x,p) => let val p' = subst (x |==> Var z) p in
+    Uni(x,p) => let val p' = subst (x |==> Var z) p in
                    subalpha(isubst (Var x) (Var z) p p')
                    end
   | _ => raise Fail "alpha: not a universal formula";
@@ -2036,7 +2036,7 @@ fun alpha z fm =
 
 fun ispec t fm =
   case fm of
-    Forall(x,p) =>
+    Uni(x,p) =>
       if mem x (fvt t) then
         let val th = alpha (variant x (union_str (fvt t) (var p))) fm in
         imp_trans th (ispec t (consequent(concl th)))
@@ -2061,8 +2061,8 @@ fun spec t th = modusponens (ispec t (concl th)) th;
 (* ------------------------------------------------------------------------- *)
 
 fun unify_complementsf env =
-  fn (Rel(p1,a1),Imp(Rel(p2,a2),Falsity)) => unify env [(Fn(p1,a1),Fn(p2,a2))]
-   | (Imp(Rel(p1,a1),Falsity),Rel(p2,a2)) => unify env [(Fn(p1,a1),Fn(p2,a2))]
+  fn (Pre(p1,a1),Imp(Pre(p2,a2),Falsity)) => unify env [(Fun(p1,a1),Fun(p2,a2))]
+   | (Imp(Pre(p1,a1),Falsity),Pre(p2,a2)) => unify env [(Fun(p1,a1),Fun(p2,a2))]
    | _ => raise Fail "unify_complementsf";
 
 (* ------------------------------------------------------------------------- *)
@@ -2126,19 +2126,19 @@ fun deskol' (skh) thp (e,s) =
 (* Main refutation function.                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-fun is_lit (Rel(_,_)) = true
-  | is_lit (Imp(Rel(_,_),Falsity)) = true
+fun is_lit (Pre(_,_)) = true
+  | is_lit (Imp(Pre(_,_),Falsity)) = true
   | is_lit _ = false;
 
-fun is_uni (Forall(_,_)) = true
+fun is_uni (Uni(_,_)) = true
   | is_uni _ = false;
 
-fun dest_uni (Forall(x,p)) = (x,p);
+fun dest_uni (Uni(x,p)) = (x,p);
 
-fun is_exi (Imp(Forall(_,_),Falsity)) = true
+fun is_exi (Imp(Uni(_,_),Falsity)) = true
   | is_exi _ = false;
 
-fun dest_exi (Imp(yp as Forall(y,p),Falsity)) = (y,p,yp);
+fun dest_exi (Imp(yp as Uni(y,p),Falsity)) = (y,p,yp);
 
 fun lcftab skofun (fms,lits,n) cont (esk as (env,sks,k)) =
     if n < 0 then raise Fail "lcftab: no proof" else
@@ -2176,8 +2176,8 @@ fun lcftab skofun (fms,lits,n) cont (esk as (env,sks,k)) =
             let val (y,p,yp) = dest_exi fm
                 val fx = skofun yp
                 val p' = subst(y |==> fx) p
-                val skh = Imp(p',Forall(y,p))
-                val sks' = (Forall(y,p),fx)::sks in
+                val skh = Imp(p',Uni(y,p))
+                val sks' = (Uni(y,p),fx)::sks in
             lcftab skofun (Imp(p',Falsity)::fl,lits,n) (cont o deskol' skh) (env,sks',k)
             end
         ) else ( (* is nonprimitive *)
@@ -2194,13 +2194,13 @@ fun lcftab skofun (fms,lits,n) cont (esk as (env,sks,k)) =
 
 fun quantforms e fm =
   case fm of
-    Not(p) => quantforms (not e) p
-  | And(p,q) => union_folfm (quantforms e p) (quantforms e q)
-  | Or(p,q)  => union_folfm (quantforms e p) (quantforms e q)
-  | Imp(p,q) => quantforms e (Or(Not p,q))
-  | Iff(p,q) => quantforms e (Or(And(p,q),And(Not p,Not q)))
-  | Exists(x,p) => if e then fm::(quantforms e p) else quantforms e p
-  | Forall(x,p) => if e then quantforms e p else fm::(quantforms e p)
+    Neg(p) => quantforms (not e) p
+  | Con(p,q) => union_folfm (quantforms e p) (quantforms e q)
+  | Dis(p,q)  => union_folfm (quantforms e p) (quantforms e q)
+  | Imp(p,q) => quantforms e (Dis(Neg p,q))
+  | Iff(p,q) => quantforms e (Dis(Con(p,q),Con(Neg p,Neg q)))
+  | Exi(x,p) => if e then fm::(quantforms e p) else quantforms e p
+  | Uni(x,p) => if e then quantforms e p else fm::(quantforms e p)
   | _ => [];
 
 (* ------------------------------------------------------------------------- *)
@@ -2209,11 +2209,11 @@ fun quantforms e fm =
 
 fun skolemfuns fm =
   let val fns = List.map (fn pr => fst pr) (functions fm)
-      val skts = List.map (fn Exists(x,p) => Forall(x,Not p) | p => p)
+      val skts = List.map (fn Exi(x,p) => Uni(x,Neg p) | p => p)
                  (quantforms true fm)
-      fun skofun i (ap as Forall(y,p)) =
+      fun skofun i (ap as Uni(y,p)) =
             let val vars = List.map (fn v => Var v) (fv ap) in
-            (ap,Fn(variant("f"^"_"^Int.toString i) fns,vars))
+            (ap,Fun(variant("f"^"_"^Int.toString i) fns,vars))
             end
   in
   map2 skofun (1--length skts) skts
@@ -2227,13 +2227,13 @@ fun form_match (fp as (f1,f2)) env =
   case fp of
     (Falsity,Falsity) => env
   | (Truth,Truth)   => env
-  | (Rel(p,pa),Rel(q,qa)) => term_match env [(Fn(p,pa),Fn(q,qa))]
-  | (Not(p1),Not(p2)) => form_match (p1,p2) env
-  | (And(p1,q1),And(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
-  | (Or(p1,q1),Or(p2,q2))   => form_match (p1,p2) (form_match (q1,q2) env)
+  | (Pre(p,pa),Pre(q,qa)) => term_match env [(Fun(p,pa),Fun(q,qa))]
+  | (Neg(p1),Neg(p2)) => form_match (p1,p2) env
+  | (Con(p1,q1),Con(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
+  | (Dis(p1,q1),Dis(p2,q2))   => form_match (p1,p2) (form_match (q1,q2) env)
   | (Imp(p1,q1),Imp(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
   | (Iff(p1,q1),Iff(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
-  | (Forall(x1,p1),Forall(x2,p2)) =>
+  | (Uni(x1,p1),Uni(x2,p2)) =>
         if (x1=x2) then
           let val z = variant x1 (union_str (fv p1) (fv p2))
               val inst_fn = subst (x1 |==> Var z) in
@@ -2241,7 +2241,7 @@ fun form_match (fp as (f1,f2)) env =
           end
         else
           raise Fail "form_match"
-  | (Exists(x1,p1),Exists(x2,p2)) =>
+  | (Exi(x1,p1),Exi(x2,p2)) =>
         if (x1=x2) then
           let val z = variant x1 (union_str (fv p1) (fv p2))
               val inst_fn = subst (x1 |==> Var z) in
@@ -2263,8 +2263,8 @@ fun lcfrefute fm n cont =
   lcftab find_skolem ([fm],[],n) cont (undefined,[],0)
   end;
 
-fun mk_skol (Forall(y,p),fx) q =
-  Imp(Imp(subst (y |==> fx) p,Forall(y,p)),q);
+fun mk_skol (Uni(y,p),fx) q =
+  Imp(Imp(subst (y |==> fx) p,Uni(y,p)),q);
 
 fun simpcont thp (env,sks,k) =
   let val ifn = tsubst(solve env) in
@@ -2279,7 +2279,7 @@ fun simpcont thp (env,sks,k) =
 
 fun elim_skolemvar th =
   case concl th of
-    Imp(Imp(pv,(apx as Forall(x,px))),q) =>
+    Imp(Imp(pv,(apx as Uni(x,px))),q) =>
         let val [th1,th2] = List.map (imp_trans(imp_add_concl Falsity th))
                             (imp_false_conseqs pv apx)
             val v = hd(subtract_str (fv pv) (fv apx) @ [x])
@@ -2385,7 +2385,7 @@ fun prove p prf = tac_proof (set_goal p) prf;
 (* Conjunction introduction tactic.                                          *)
 (* ------------------------------------------------------------------------- *)
 
-fun conj_intro_tac (Goals((asl,And(p,q))::gls,jfn)) =
+fun conj_intro_tac (Goals((asl,Con(p,q))::gls,jfn)) =
   let fun jfn' (thp::thq::ths) =
     jfn(imp_trans_chain [thp, thq] (and_pair p q)::ths) in
   Goals((asl,p)::(asl,q)::gls,jfn')
@@ -2410,7 +2410,7 @@ fun gen_right_alpha y x th =
 (* Universal introduction.                                                   *)
 (* ------------------------------------------------------------------------- *)
 
-fun forall_intro_tac y (Goals((asl,(fm as Forall(x,p)))::gls,jfn)) =
+fun forall_intro_tac y (Goals((asl,(fm as Uni(x,p)))::gls,jfn)) =
   if mem y (fv fm) orelse List.exists (mem y o fv o snd) asl
   then raise Fail "fix: variable already free in goal" else
   Goals((asl,subst(x |==> Var y) p)::gls,
@@ -2421,18 +2421,18 @@ fun forall_intro_tac y (Goals((asl,(fm as Forall(x,p)))::gls,jfn)) =
 (* ------------------------------------------------------------------------- *)
 
 fun right_exists x t p =
-  let val th = contrapos(ispec t (Forall(x,Not p)))
-      val Not(Not p') = antecedent(concl th) in
+  let val th = contrapos(ispec t (Uni(x,Neg p)))
+      val Neg(Neg p') = antecedent(concl th) in
   end_itlist imp_trans
    [imp_contr p' Falsity, imp_add_concl Falsity (iff_imp1 (axiom_not p')),
-    iff_imp2(axiom_not (Not p')), th, iff_imp2(axiom_exists x p)]
+    iff_imp2(axiom_not (Neg p')), th, iff_imp2(axiom_exists x p)]
   end;
 
 (* ------------------------------------------------------------------------- *)
 (* Existential introduction.                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-fun exists_intro_tac t (Goals((asl,Exists(x,p))::gls,jfn)) =
+fun exists_intro_tac t (Goals((asl,Exi(x,p))::gls,jfn)) =
   Goals((asl,subst(x |==> t) p)::gls,
         jmodify jfn (fn th => imp_trans th (right_exists x t p))) ;
 
@@ -2555,10 +2555,10 @@ fun lemma_tac s p byfn hyps (g as Goals((asl,w)::gls,jfn)) =
 (* ------------------------------------------------------------------------- *)
 
 fun exists_elim_tac l fm byfn hyps (g as Goals((asl,w)::gls,jfn)) =
-  let val Exists(x,p) = fm in
+  let val Exi(x,p) = fm in
   if List.exists (mem x o fv) (w::List.map snd asl)
   then raise Fail "exists_elim_tac: variable free in assumptions" else
-  let val th = justify byfn hyps (Exists(x,p)) g
+  let val th = justify byfn hyps (Exi(x,p)) g
       fun jfn' pth = imp_unduplicate(imp_trans th (exists_left x (shunt pth)))
   in
   Goals(((l,p)::asl,w)::gls,jmodify jfn jfn')
@@ -2572,7 +2572,7 @@ fun ante_disj th1 th2 =
   let val (p,r) = dest_imp(concl th1)
       val (q,s) = dest_imp(concl th2)
       val ths = map contrapos [th1, th2]
-      val th3 = imp_trans_chain ths (and_pair (Not p) (Not q))
+      val th3 = imp_trans_chain ths (and_pair (Neg p) (Neg q))
       val th4 = contrapos(imp_trans (iff_imp2(axiom_not r)) th3)
       val th5 = imp_trans (iff_imp1(axiom_or p q)) th4 in
   right_doubleneg(imp_trans th5 (iff_imp1(axiom_not(Imp(r,Falsity)))))
@@ -2584,7 +2584,7 @@ fun ante_disj th1 th2 =
 
 fun disj_elim_tac l fm byfn hyps (g as Goals((asl,w)::gls,jfn) ) =
   let val th = justify byfn hyps fm g
-      val Or(p,q) = fm
+      val Dis(p,q) = fm
       fun jfn' (pth::qth::ths) =
          let val th1 = imp_trans th (ante_disj (shunt pth) (shunt qth)) in
          jfn(imp_unduplicate th1::ths)
@@ -2619,7 +2619,7 @@ fun so tac arg byfn =
 
 val fix = forall_intro_tac;
 
-fun consider (x,p) = exists_elim_tac "" (Exists(x,p));
+fun consider (x,p) = exists_elim_tac "" (Exi(x,p));
 
 fun take tm gls = exists_intro_tac tm gls;
 
