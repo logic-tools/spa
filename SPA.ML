@@ -835,7 +835,7 @@ fun dest_iff fm =
   case fm of Iff(p,q) => (p,q) | _ => raise Fail "dest_iff";
 
 fun dest_and fm =
-  case fm of Con(p,q) => (p,q) | _ => raise Fail ("dest_and");
+  case fm of Con(p,q) => (p,q) | _ => raise Fail "dest_and";
 
 fun conjuncts fm =
   case fm of Con(p,q) => conjuncts p @ conjuncts q | _ => [fm];
@@ -2716,9 +2716,9 @@ fun by_mp (ab, a) p (Goals((asl,_)::_,_)) =
   let
     val ths = assumps asl
     val th = right_mp (assoc ab ths) (assoc a ths)
-    handle Fail _ => raise (Fail "by_mp: unapplicable assumptions")
+    handle Fail _ => raise Fail "by_mp: unapplicable assumptions"
   in
-  if consequent (concl th) = p then [th] else raise (Fail "by_mp: wrong conclusion")
+  if consequent (concl th) = p then [th] else raise Fail "by_mp: wrong conclusion"
   end
   | by_mp _ _ _ = raise Fail "Match by_mp"
 ;
