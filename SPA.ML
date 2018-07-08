@@ -204,7 +204,7 @@ fun decreasing f x y = (f x) > (f y) ;
 
 fun uniq l =
     case l of
-      x :: (t as y :: ys ) =>
+      x :: (t as y :: _ ) =>
         let val t' = uniq t in
             if x = y then t'
             else
@@ -249,7 +249,7 @@ fun union ord s1 s2=
 fun subtract ord s1 s2=
   let fun subtract l1 l2 =
     case (l1,l2) of
-        ([],l2) => []
+        ([],_) => []
       | (l1,[]) => l1
       | ((l1 as h1::t1),(l2 as h2::t2)) =>
           if h1 = h2 then subtract t1 t2
@@ -291,7 +291,7 @@ fun mem x lis =
 fun time f x =
     let val timer = Timer.startRealTimer()
         val result = f x
-        val time = Timer.checkRealTimer timer
+        val _ = Timer.checkRealTimer timer
     in (
     (* XXX print_string ("CPU time (user): " ^ (Real.toString (Time.toReal time)));
     print_newline(); *)
@@ -370,11 +370,11 @@ fun applyd ord hash f d x=
   end
 ;
 
-fun apply ord hash f = applyd ord hash f (fn x => raise Fail "apply");
+fun apply ord hash f = applyd ord hash f (fn _ => raise Fail "apply");
 
 fun apply_str f = apply str_ord str_hash f;
 
-fun tryapplyd ord hash f a d = applyd ord hash f (fn x => d) a;
+fun tryapplyd ord hash f a d = applyd ord hash f (fn _ => d) a;
 
 fun tryapplyd_str f a d = tryapplyd str_ord str_hash f a d;
 
@@ -391,7 +391,7 @@ fun defined_str f x = defined str_ord str_hash f x;
 local
   fun undefine_list ord x l =
     case l of
-      (ab as (a,b))::t =>
+      (ab as (a,_))::t =>
           let val c = ord x a in
           if c = 0 then
             t
@@ -451,9 +451,9 @@ local
         if p1 land b = 0 then Branch(p,b,t1,t2)
         else Branch(p,b,t2,t1)
         end
-  fun define_list ord (xy as (x,y)) l =
+  fun define_list ord (xy as (x,_)) l =
         case l of
-          (ab as (a,b))::t =>
+          (ab as (a,_))::t =>
               let val c = ord x a in
               if c = 0 then xy::t
               else if c < 0 then xy::l
@@ -501,7 +501,7 @@ local
                 if l = [] then Empty else Leaf(h1,l)
                 end
               else newbranch h1 t1 h2 t2
-        | ((lf as Leaf(k,lis)),(br as Branch(p,b,l,r))) =>
+        | ((lf as Leaf(k,_)),(br as Branch(p,b,l,r))) =>
               if k land (b - 1) = p then
                 if k land b = 0 then
                   (case combine ord op' z lf l of
@@ -511,7 +511,7 @@ local
                      Empty => l | r' => Branch(p,b,l,r'))
               else
                 newbranch k lf p br
-        | ((br as Branch(p,b,l,r)),(lf as Leaf(k,lis))) =>
+        | ((br as Branch(p,b,l,r)),(lf as Leaf(k,_))) =>
               if k land (b - 1) = p then
                 if k land b = 0 then
                   (case combine ord op' z l lf of
@@ -596,7 +596,7 @@ fun lex inp =
     [] => []
   | c::cs => let val prop = if alphanumeric(c) then alphanumeric
                         else if symbolic(c) then symbolic
-                        else fn c => false
+                        else fn _ => false
                  val (toktl,rest) = lexwhile prop cs in
              ((str c)^toktl)::lex rest
              end;
@@ -779,9 +779,9 @@ fun print_formula_aux pfn =
             bracket (pr > 4) 0 (print_infix 4 "==>") p q
         | Iff (p, q) =>
             bracket (pr > 2) 0 (print_infix 2 "<=>") p q
-        | Uni (x, p) =>
+        | Uni (_, _) =>
             bracket (pr > 0) 2 print_qnt "forall" (strip_quant fm)
-        | Exi (x, p) =>
+        | Exi (_, _) =>
             bracket (pr > 0) 2 print_qnt "exists" (strip_quant fm)
 
     and print_qnt qname (bvs, bod) = (
@@ -880,8 +880,8 @@ fun overatoms f fm b =
   | Dis(p,q)  => overatoms f p (overatoms f q b)
   | Imp(p,q) => overatoms f p (overatoms f q b)
   | Iff(p,q) => overatoms f p (overatoms f q b)
-  | Uni(x,p) => overatoms f p b
-  | Exi(x,p) => overatoms f p b
+  | Uni(_,p) => overatoms f p b
+  | Exi(_,p) => overatoms f p b
   | _ => b;
 
 (* ------------------------------------------------------------------------- *)
@@ -954,7 +954,7 @@ fun apply_t f = apply t_ord t_hash f;
 (* Abbreviation for FOL formula.                                             *)
 (* ------------------------------------------------------------------------- *)
 
-fun fol_ord (r1 as Rl(s1,tl1)) (r2 as Rl(s2,tl2)) =
+fun fol_ord (Rl(s1,tl1)) (Rl(s2,tl2)) =
     case str_ord s1 s2 of
       0 => tl_ord tl1 tl2
     | n => n
@@ -1098,7 +1098,7 @@ fun printert tm = (printert_aux tm; print_flush ());
 (* Printing of formulas.                                                     *)
 (* ------------------------------------------------------------------------- *)
 
-fun print_atom_aux prec (Rl (p, args)) =
+fun print_atom_aux _ (Rl (p, args)) =
     if mem p ["=", "<", "<=", ">", ">="] andalso List.length args = 2 then
         print_infix_term_aux false 12 12 (" " ^ p) (List.nth (args, 0)) (List.nth (args, 1))
     else
@@ -1117,7 +1117,7 @@ fun print_fol_formula f = (print_fol_formula_aux f; print_flush ());
 fun fvt tm =
     case tm of
       Var x => [x]
-    | Fun (f, args) =>
+    | Fun (_, args) =>
         unions_str (List.map fvt args)
 ;
 
@@ -1125,7 +1125,7 @@ fun var fm =
     case fm of
       Falsity => []
     | Truth => []
-    | Pre (p, args) =>
+    | Pre (_, args) =>
         unions str_ord (List.map fvt args)
     | Neg p => var p
     | Con (p, q) => union_str (var p) (var q)
@@ -1140,7 +1140,7 @@ fun fv fm =
     case fm of
       Falsity => []
     | Truth => []
-    | Pre (p, args) =>
+    | Pre (_, args) =>
         unions_str (List.map fvt args)
     | Neg p => fv p
     | Con (p, q) => union_str (fv p) (fv q)
@@ -1210,11 +1210,11 @@ and substq subfn quant x p =
 
 fun funcs tm =
   case tm of
-    Var x => []
+    Var _ => []
   | Fun(f,args) => itlist (union_sip o funcs) args [(f,List.length args)];
 
 fun functions fm =
-  atom_union_sip (fn (Rl(p,a)) => itlist (union_sip o funcs) a []) fm;
+  atom_union_sip (fn (Rl(_,a)) => itlist (union_sip o funcs) a []) fm;
 
 "unif.sml";
 
@@ -1225,7 +1225,7 @@ fun functions fm =
 fun istriv env x t =
   case t of
     Var y => y = x orelse defined_str env y andalso istriv env x (apply_str env y)
-  | Fun(f,args) => List.exists (istriv env x) args andalso raise Fail "cyclic";
+  | Fun(_,args) => List.exists (istriv env x) args andalso raise Fail "cyclic";
 
 (* ------------------------------------------------------------------------- *)
 (* Main unification procedure                                                *)
@@ -1328,8 +1328,8 @@ fun lhs eq = fst (dest_eq eq) and rhs eq = snd (dest_eq eq);
 
 fun termsize tm =
   case tm of
-    Var x => 1
-  | Fun(f,args) => itlist (fn t => fn n => termsize t + n) args 1;
+    Var _ => 1
+  | Fun(_,args) => itlist (fn t => fn n => termsize t + n) args 1;
 
 "eqelim.sml";
 
@@ -1397,7 +1397,7 @@ fun negatef fm =
 
 fun negativef fm =
   case fm of
-    Imp(p,Falsity) => true
+    Imp(_,Falsity) => true
   | _ => false;
 
 (* ------------------------------------------------------------------------- *)
@@ -1437,7 +1437,7 @@ fun imp_trans th1 th2 =
 (* ------------------------------------------------------------------------- *)
 
 fun imp_insert q th =
-  let val (p,r) = dest_imp(concl th) in
+  let val (_,r) = dest_imp(concl th) in
   imp_trans th (axiom_addimp r q)
   end ;
 
@@ -1559,8 +1559,8 @@ fun ex_falso p = right_doubleneg(axiom_addimp Falsity (Imp(p,Falsity)));
 (* ------------------------------------------------------------------------- *)
 
 fun imp_trans2 th1 th2 =
-  let val Imp(p,Imp(q,r)) = concl th1
-      val Imp(r',s) = concl th2
+  let val (p,q,r) = case concl th1 of Imp(p,Imp(q,r)) => (p,q,r) | _ => raise Fail "Pattern 1"
+      val s = case concl th2 of Imp(_,s) => s | _ => raise Fail "Pattern 2"
       val th = imp_add_assum p (modusponens (imp_trans_th q r s) th2) in
   modusponens th th1
   end;
@@ -1666,7 +1666,7 @@ fun shunt th =
 
 fun unshunt th =
   let val (p,qr) = dest_imp(concl th)
-      val (q,r) = dest_imp qr in
+      val (q,_) = dest_imp qr in
   imp_trans_chain [and_left p q, and_right p q] th
   end;
 
@@ -1786,7 +1786,7 @@ fun is_false Falsity = true
 fun is_true (Imp(p,q)) = (p = q)
   | is_true _ = false;
 
-fun is_conj (Imp(Imp(p,q),Falsity)) = true
+fun is_conj (Imp(Imp(_,_),Falsity)) = true
   | is_conj _ = false
 
 fun dest_conj fm =
@@ -1794,7 +1794,7 @@ fun dest_conj fm =
       (Imp(Imp(p,q),Falsity)) => (p,q)
     | _ => raise Fail "dest_conj"
 
-fun is_disj (Imp(p,q)) = (q <> Falsity)
+fun is_disj (Imp(_,q)) = (q <> Falsity)
   | is_disj _ = false
 
 fun dest_disj fm = dest_imp fm;
@@ -1951,7 +1951,7 @@ fun exists_left x th =
 
 fun subspec th =
   case concl th of
-    Imp(e as Pre("=",[Var x,t]),Imp(p,q)) =>
+    Imp(e as Pre("=",[Var x,t]),Imp(_,q)) =>
         let val th1 = imp_trans (genimp x (imp_swap th))
                             (exists_left_th x e q) in
         modusponens (imp_swap th1) (axiom_existseq x t)
@@ -1966,7 +1966,7 @@ fun subspec th =
 
 fun subalpha th =
    case concl th of
-    Imp(Pre("=",[Var x,Var y]),Imp(p,q)) =>
+    Imp(Pre("=",[Var x,Var y]),Imp(_,_)) =>
         if x = y then genimp x (modusponens th (axiom_eqrefl(Var x)))
         else gen_right y (subspec th)
   | _ => raise Fail "subalpha: wrong sort of theorem";
@@ -2075,7 +2075,7 @@ fun use_laterimp i fm =
   case fm of
     Imp(_,Imp(i',_)) =>
       ( case (fm,i'=i) of
-          (Imp(Imp(q',s),Imp(i' as Imp(q,p),r)),true) =>
+          (Imp(Imp(_,s),Imp(Imp(q,p),r)),true) =>
              let val th1 = axiom_distribimp i (Imp(Imp(q,s),r)) (Imp(Imp(p,s),r))
                  val th2 = imp_swap(imp_trans_th q p s)
                  val th3 = imp_swap(imp_trans_th (Imp(p,s)) (Imp(q,s)) r) in
@@ -2083,7 +2083,9 @@ fun use_laterimp i fm =
              end
         | (Imp(qs,Imp(a,b)),_) =>
              imp_swap2(imp_add_assum a (use_laterimp i (Imp(qs,b))))
+        | _ => raise Fail "Match use_laterimp 1"
       )
+  | _ => raise Fail "Match use_laterimp 2"
 ;
 
 (* ------------------------------------------------------------------------- *)
@@ -2096,10 +2098,10 @@ fun imp_true_rule' th1 th2 es = imp_true_rule (th1 es) (th2 es);
 
 fun imp_front' n thp es = imp_front n (thp es);
 
-fun add_assum' fm thp (es as(e,s)) =
+fun add_assum' fm thp (es as(e,_)) =
   add_assum (onformula e fm) (thp es);
 
-fun eliminate_connective' fm thp (es as(e,s)) =
+fun eliminate_connective' fm thp (es as(e,_)) =
   imp_trans (eliminate_connective (onformula e fm)) (thp es);
 
 fun spec' y fm n thp (e,s) =
@@ -2111,11 +2113,13 @@ fun ex_falso' fms (e,s) =
   ex_falso (itlist (mk_imp o onformula e) fms s);
 
 fun complits' (p::fl,lits) i (e,s) =
-  let val (l1,p'::l2) = chop_list i lits in
+  let val (l1,l2) = case chop_list i lits of (l1,_::l2) => (l1,l2) | _ => raise Fail "Pattern 3" in
   itlist (imp_insert o onformula e) (fl @ l1)
          (imp_contr (onformula e p)
                     (itlist (mk_imp o onformula e) l2 s))
-  end;
+  end
+  | complits' _ _ _ = raise Fail "Match complits'"
+;
 
 fun deskol' (skh) thp (e,s) =
   let val th = thp (e,s) in
@@ -2133,12 +2137,14 @@ fun is_lit (Pre(_,_)) = true
 fun is_uni (Uni(_,_)) = true
   | is_uni _ = false;
 
-fun dest_uni (Uni(x,p)) = (x,p);
+fun dest_uni (Uni(x,p)) = (x,p)
+  | dest_uni _ = raise Fail "Match dest_uni";
 
 fun is_exi (Imp(Uni(_,_),Falsity)) = true
   | is_exi _ = false;
 
-fun dest_exi (Imp(yp as Uni(y,p),Falsity)) = (y,p,yp);
+fun dest_exi (Imp(yp as Uni(y,p),Falsity)) = (y,p,yp)
+  | dest_exi _ = raise Fail "Match dest_exi";
 
 fun lcftab skofun (fms,lits,n) cont (esk as (env,sks,k)) =
     if n < 0 then raise Fail "lcftab: no proof" else
@@ -2199,8 +2205,8 @@ fun quantforms e fm =
   | Dis(p,q)  => union_folfm (quantforms e p) (quantforms e q)
   | Imp(p,q) => quantforms e (Dis(Neg p,q))
   | Iff(p,q) => quantforms e (Dis(Con(p,q),Con(Neg p,Neg q)))
-  | Exi(x,p) => if e then fm::(quantforms e p) else quantforms e p
-  | Uni(x,p) => if e then quantforms e p else fm::(quantforms e p)
+  | Exi(_,p) => if e then fm::(quantforms e p) else quantforms e p
+  | Uni(_,p) => if e then quantforms e p else fm::(quantforms e p)
   | _ => [];
 
 (* ------------------------------------------------------------------------- *)
@@ -2211,10 +2217,11 @@ fun skolemfuns fm =
   let val fns = List.map (fn pr => fst pr) (functions fm)
       val skts = List.map (fn Exi(x,p) => Uni(x,Neg p) | p => p)
                  (quantforms true fm)
-      fun skofun i (ap as Uni(y,p)) =
+      fun skofun i (ap as Uni(_,_)) =
             let val vars = List.map (fn v => Var v) (fv ap) in
             (ap,Fun(variant("f"^"_"^Int.toString i) fns,vars))
             end
+        | skofun _ _ = raise Fail "Match skofun"
   in
   map2 skofun (1--length skts) skts
   end;
@@ -2223,14 +2230,14 @@ fun skolemfuns fm =
 (* Matching.                                                                 *)
 (* ------------------------------------------------------------------------- *)
 
-fun form_match (fp as (f1,f2)) env =
+fun form_match fp env =
   case fp of
     (Falsity,Falsity) => env
   | (Truth,Truth)   => env
   | (Pre(p,pa),Pre(q,qa)) => term_match env [(Fun(p,pa),Fun(q,qa))]
   | (Neg(p1),Neg(p2)) => form_match (p1,p2) env
   | (Con(p1,q1),Con(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
-  | (Dis(p1,q1),Dis(p2,q2))   => form_match (p1,p2) (form_match (q1,q2) env)
+  | (Dis(p1,q1),Dis(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
   | (Imp(p1,q1),Imp(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
   | (Iff(p1,q1),Iff(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
   | (Uni(x1,p1),Uni(x2,p2)) =>
@@ -2264,9 +2271,11 @@ fun lcfrefute fm n cont =
   end;
 
 fun mk_skol (Uni(y,p),fx) q =
-  Imp(Imp(subst (y |==> fx) p,Uni(y,p)),q);
+  Imp(Imp(subst (y |==> fx) p,Uni(y,p)),q)
+  | mk_skol _ _ = raise Fail "Match mk_skol"
+;
 
-fun simpcont thp (env,sks,k) =
+fun simpcont thp (env,sks,_) =
   let val ifn = tsubst(solve env) in
   thp(ifn,onformula ifn (itlist mk_skol sks Falsity))
   end;
@@ -2279,9 +2288,10 @@ fun simpcont thp (env,sks,k) =
 
 fun elim_skolemvar th =
   case concl th of
-    Imp(Imp(pv,(apx as Uni(x,px))),q) =>
-        let val [th1,th2] = List.map (imp_trans(imp_add_concl Falsity th))
+    Imp(Imp(pv,(apx as Uni(x,_))),q) =>
+        let val (th1,th2) = case List.map (imp_trans(imp_add_concl Falsity th))
                             (imp_false_conseqs pv apx)
+                            of [th1,th2] => (th1,th2) | _ => raise Fail "Pattern 4"
             val v = hd(subtract_str (fv pv) (fv apx) @ [x])
             val th3 = gen_right v th1
             val th4 = imp_trans th3 (alpha x (consequent(concl th3))) in
@@ -2295,12 +2305,12 @@ fun elim_skolemvar th =
 (* often now that we have adequate sharing.                                  *)
 (* ------------------------------------------------------------------------- *)
 
-fun deskolcont thp (env,sks,k) =
+fun deskolcont thp (env,sks,_) =
   let val ifn = tsubst(solve env)
       val isk = setify_ftp(List.map (fn (p,t) => (onformula ifn p,ifn t)) sks)
       val ssk = sort (decreasing (termsize o snd)) isk
       val vs  = List.map (fn i => Var("Y_"^Int.toString i)) (1--List.length ssk)
-      val vfn = replacet(itlist2 (fn (p,t) => fn v => t |---> v) ssk vs undefined)
+      val vfn = replacet(itlist2 (fn (_,t) => fn v => t |---> v) ssk vs undefined)
       val th = thp(vfn o ifn,onformula vfn (itlist mk_skol ssk Falsity)) in
   repeat (elim_skolemvar o imp_swap) th
   end;
@@ -2340,7 +2350,7 @@ val print_goal_aux =
         print_newline();
         close_box()
     ) in
-    fn (Goals (gls, jfn)) =>
+    fn (Goals (gls, _)) =>
         case gls of
           [] =>
             print_string "No subgoals"
@@ -2369,7 +2379,7 @@ fun print_goal g = (print_goal_aux g; print_flush ());
 
 fun set_goal p =
   let fun chk th = if concl th = p then th else raise Fail "wrong theorem" in
-  Goals([([],p)],fn [th] => chk(modusponens th truth))
+  Goals([([],p)],fn [th] => chk(modusponens th truth) | _ => raise Fail "Match set_goal")
   end;
 
 fun extract_thm gls =
@@ -2387,15 +2397,20 @@ fun prove p prf = tac_proof (set_goal p) prf;
 
 fun conj_intro_tac (Goals((asl,Con(p,q))::gls,jfn)) =
   let fun jfn' (thp::thq::ths) =
-    jfn(imp_trans_chain [thp, thq] (and_pair p q)::ths) in
+    jfn(imp_trans_chain [thp, thq] (and_pair p q)::ths)
+  | jfn' _ = raise Fail "Match jfn'" in
   Goals((asl,p)::(asl,q)::gls,jfn')
-  end;
+  end
+  | conj_intro_tac _ = raise Fail "Match conj_intro_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* Handy idiom for tactic that does not split subgoals.                      *)
 (* ------------------------------------------------------------------------- *)
 
-fun jmodify jfn tfn (th::oths) = jfn(tfn th :: oths);
+fun jmodify jfn tfn (th::oths) = jfn(tfn th :: oths)
+  | jmodify _ _ _ = raise Fail "Match jmodify"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* Version of gen_right with a bound variable change.                        *)
@@ -2414,7 +2429,9 @@ fun forall_intro_tac y (Goals((asl,(fm as Uni(x,p)))::gls,jfn)) =
   if mem y (fv fm) orelse List.exists (mem y o fv o snd) asl
   then raise Fail "fix: variable already free in goal" else
   Goals((asl,subst(x |==> Var y) p)::gls,
-        jmodify jfn (gen_right_alpha y x));
+        jmodify jfn (gen_right_alpha y x))
+  | forall_intro_tac _ _ = raise Fail "Match forall_intro_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* Another inference rule: |- P[t] ==> exists x. P[x]                        *)
@@ -2422,7 +2439,7 @@ fun forall_intro_tac y (Goals((asl,(fm as Uni(x,p)))::gls,jfn)) =
 
 fun right_exists x t p =
   let val th = contrapos(ispec t (Uni(x,Neg p)))
-      val Neg(Neg p') = antecedent(concl th) in
+      val p' = case antecedent(concl th) of Neg(Neg p') => p' | _ => raise Fail "Pattern 5" in
   end_itlist imp_trans
    [imp_contr p' Falsity, imp_add_concl Falsity (iff_imp1 (axiom_not p')),
     iff_imp2(axiom_not (Neg p')), th, iff_imp2(axiom_exists x p)]
@@ -2434,7 +2451,9 @@ fun right_exists x t p =
 
 fun exists_intro_tac t (Goals((asl,Exi(x,p))::gls,jfn)) =
   Goals((asl,subst(x |==> t) p)::gls,
-        jmodify jfn (fn th => imp_trans th (right_exists x t p))) ;
+        jmodify jfn (fn th => imp_trans th (right_exists x t p)))
+  | exists_intro_tac _ _ = raise Fail "Match exists_intro_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* Implication introduction tactic.                                          *)
@@ -2443,14 +2462,17 @@ fun exists_intro_tac t (Goals((asl,Exi(x,p))::gls,jfn)) =
 fun imp_intro_tac s (Goals((asl,Imp(p,q))::gls,jfn)) =
   let val jmod = if asl = [] then add_assum Truth else imp_swap o shunt in
   Goals(((s,p)::asl,q)::gls,jmodify jfn jmod)
-  end;
+  end
+  | imp_intro_tac _ _ = raise Fail "Match imp_intro_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* Append contextual hypothesis to unconditional theorem.                    *)
 (* ------------------------------------------------------------------------- *)
 
-fun assumptate (Goals((asl,w)::gls,jfn)) th =
-  add_assum (list_conj (map snd asl)) th;
+fun assumptate (Goals((asl,_)::_,_)) th =
+  add_assum (list_conj (map snd asl)) th
+  | assumptate _ _ = raise Fail "Match assumptate";
 
 (* ------------------------------------------------------------------------- *)
 (* Get the first assumption (quicker than head of assumps result).           *)
@@ -2466,7 +2488,7 @@ fun firstassum asl =
 (* Import "external" theorem.                                                *)
 (* ------------------------------------------------------------------------- *)
 
-fun using ths p g =
+fun using ths _ g =
   let val ths' = map (fn th => itlist gen (fv(concl th)) th) ths in
   List.map (assumptate g) ths'
   end;
@@ -2490,10 +2512,11 @@ fun assumps asl =
 (* Produce canonical theorem from list of theorems or assumption labels.     *)
 (* ------------------------------------------------------------------------- *)
 
-fun by hyps p (Goals((asl,w)::gls,jfn)) =
+fun by hyps _ (Goals((asl,_)::_,_)) =
   let val ths = assumps asl in
   List.map (fn s => assoc s ths) hyps
-  end;
+  end
+  | by _ _ _ = raise Fail "Match by";
 
 (* ------------------------------------------------------------------------- *)
 (* Main automatic justification step.                                        *)
@@ -2521,24 +2544,27 @@ end;
 (* Nested subproof.                                                          *)
 (* ------------------------------------------------------------------------- *)
 
-fun proof tacs p (Goals((asl,w)::gls,jfn)) =
-  [tac_proof (Goals([(asl,p)],fn [th] => th)) tacs];
+fun proof tacs p (Goals((asl,_)::_,_)) =
+  [tac_proof (Goals([(asl,p)],fn [th] => th | _ => raise Fail "Match proof 0")) tacs]
+  | proof _ _ _ = raise Fail "Match proof";
 
 (* ------------------------------------------------------------------------- *)
 (* Trivial justification, producing no hypotheses.                           *)
 (* ------------------------------------------------------------------------- *)
 
-fun at once p gl = [];
+fun at _ _ _ = [];
 val once = [];
 
 (* ------------------------------------------------------------------------- *)
 (* Hence an automated terminal tactic.                                       *)
 (* ------------------------------------------------------------------------- *)
 
-fun auto_tac byfn hyps (g as Goals((asl,w)::gls,jfn)) =
+fun auto_tac byfn hyps (g as Goals((_,w)::gls,jfn)) =
   let val th = justify byfn hyps w g in
   Goals(gls,fn ths => jfn(th::ths))
-  end;
+  end
+  | auto_tac _ _ _ = raise Fail "Match auto_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* A "lemma" tactic.                                                         *)
@@ -2548,21 +2574,25 @@ fun lemma_tac s p byfn hyps (g as Goals((asl,w)::gls,jfn)) =
   let val tr  = imp_trans(justify byfn hyps p g)
       val mfn = if asl = [] then tr else imp_unduplicate o tr o shunt in
   Goals(((s,p)::asl,w)::gls,jmodify jfn mfn)
-  end;
+  end
+  | lemma_tac _ _ _ _ _ = raise Fail "Match lemma_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* Elimination tactic for existential quantification.                        *)
 (* ------------------------------------------------------------------------- *)
 
 fun exists_elim_tac l fm byfn hyps (g as Goals((asl,w)::gls,jfn)) =
-  let val Exi(x,p) = fm in
+  let val (x,p) = case fm of Exi(x,p) => (x,p) | _ => raise Fail "Pattern 6" in
   if List.exists (mem x o fv) (w::List.map snd asl)
   then raise Fail "exists_elim_tac: variable free in assumptions" else
   let val th = justify byfn hyps (Exi(x,p)) g
       fun jfn' pth = imp_unduplicate(imp_trans th (exists_left x (shunt pth)))
   in
   Goals(((l,p)::asl,w)::gls,jmodify jfn jfn')
-  end end;
+  end end
+  | exists_elim_tac _ _ _ _ _ = raise Fail "Match exists_elim_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* If |- p ==> r and |- q ==> r then |- p \/ q ==> r                         *)
@@ -2570,7 +2600,7 @@ fun exists_elim_tac l fm byfn hyps (g as Goals((asl,w)::gls,jfn)) =
 
 fun ante_disj th1 th2 =
   let val (p,r) = dest_imp(concl th1)
-      val (q,s) = dest_imp(concl th2)
+      val (q,_) = dest_imp(concl th2)
       val ths = map contrapos [th1, th2]
       val th3 = imp_trans_chain ths (and_pair (Neg p) (Neg q))
       val th4 = contrapos(imp_trans (iff_imp2(axiom_not r)) th3)
@@ -2584,14 +2614,17 @@ fun ante_disj th1 th2 =
 
 fun disj_elim_tac l fm byfn hyps (g as Goals((asl,w)::gls,jfn) ) =
   let val th = justify byfn hyps fm g
-      val Dis(p,q) = fm
+      val (p,q) = case fm of Dis(p,q) => (p,q) | _ => raise Fail "Pattern 7"
       fun jfn' (pth::qth::ths) =
          let val th1 = imp_trans th (ante_disj (shunt pth) (shunt qth)) in
          jfn(imp_unduplicate th1::ths)
          end
+        | jfn' _ = raise Fail "Match jfn'"
   in
   Goals(((l,p)::asl,w)::((l,q)::asl,w)::gls,jfn')
-  end;
+  end
+  | disj_elim_tac _ _ _ _ _ = raise Fail "Match disj_elim_tac"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* Declarative proof.                                                        *)
@@ -2607,15 +2640,20 @@ fun assume lps (Goals((asl,Imp(p,q))::gls,jfn)) =
   let fun jfn' th =
     if asl = [] then add_assum Truth th else multishunt (length lps) th in
   Goals((lps@asl,q)::gls,jmodify jfn jfn')
-  end;
+  end
+  | assume _ _ = raise Fail "Match assume"
+;
 
 fun note (l,p) = lemma_tac l p;
 
 fun have p = note("",p);
 
 fun so tac arg byfn =
-  tac arg (fn hyps => fn p => fn (gl as Goals((asl,w)::_,_)) =>
-                     firstassum asl :: byfn hyps p gl);
+  tac arg (fn hyps => fn p => fn (gl as Goals((asl,_)::_,_)) =>
+                     firstassum asl :: byfn hyps p gl
+                               | _ => raise Fail "Match so"
+)
+;
 
 val fix = forall_intro_tac;
 
@@ -2636,43 +2674,54 @@ fun conclude p byfn hyps (gl as Goals((asl,w)::gls,jfn)) =
   if p' <> p then raise Fail "conclude: bad conclusion" else
   let fun mfn th' = imp_trans_chain [th, th'] (and_pair p q) in
   Goals((asl,q)::gls,jmodify jfn mfn)
-  end end end;
+  end end end
+  | conclude _ _ _ _ = raise Fail "Match conclude"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* A useful shorthand for solving the whole goal.                            *)
 (* ------------------------------------------------------------------------- *)
 
-fun our thesis byfn hyps (gl as Goals((asl,w)::gls,jfn)) =
-  conclude w byfn hyps gl;
+fun our _ byfn hyps (gl as Goals((_,w)::_,_)) =
+  conclude w byfn hyps gl
+  | our _ _ _ _ = raise Fail "Match our"
+;
 val thesis = "";
 
 (* ------------------------------------------------------------------------- *)
 (* Termination.                                                              *)
 (* ------------------------------------------------------------------------- *)
 
-fun qed (gl as Goals((asl,w)::gls,jfn)) =
+fun qed (gl as Goals((_,w)::gls,jfn)) =
   if w = Truth then Goals(gls,fn ths => jfn(assumptate gl truth :: ths))
-  else raise Fail "qed: non-trivial goal";
+  else raise Fail "qed: non-trivial goal"
+  | qed _ = raise Fail "Match qed"
+;
 
 (* ------------------------------------------------------------------------- *)
 (* A lemma construct.                                                        *)
 (* ------------------------------------------------------------------------- *)
 
-fun lemma (s,p) (gl as Goals((asl,w)::gls,jfn)) =
+fun lemma (s,p) (Goals((asl,w)::gls,jfn)) =
   Goals((asl,p)::((s,p)::asl,w)::gls,
         fn (thp::thw::oths) =>
-            jfn(imp_unduplicate(imp_trans thp (shunt thw)) :: oths));
+            jfn(imp_unduplicate(imp_trans thp (shunt thw)) :: oths)
+         | _ => raise Fail "Match lemma0")
+  | lemma _ _ = raise Fail "Match lemma"
+;
 
 \<comment> \<open>For Pelletier's Problem 34 aka Andrews's Challenge\<close>
 
-fun by_mp (ab, a) p (Goals((asl,w)::gls,jfn)) =
+fun by_mp (ab, a) p (Goals((asl,_)::_,_)) =
   let
     val ths = assumps asl
     val th = right_mp (assoc ab ths) (assoc a ths)
     handle Fail _ => raise (Fail "by_mp: unapplicable assumptions")
   in
   if consequent (concl th) = p then [th] else raise (Fail "by_mp: wrong conclusion")
-  end;
+  end
+  | by_mp _ _ _ = raise Fail "Match by_mp"
+;
 
 \<comment> \<open>The standalone automatic prover\<close>
 
