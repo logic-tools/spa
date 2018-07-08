@@ -694,7 +694,7 @@ fun papply f (ast,rest) = (f ast,rest);
 fun nextin inp tok = inp <> [] andalso List.hd inp = tok;
 
 fun parse_bracketed subparser cbra inp =
-  let  val(ast,rest) = subparser inp in
+  let val(ast,rest) = subparser inp in
   if nextin rest cbra then (ast,List.tl rest)
   else raise Fail "Closing bracket expected"
   end;
@@ -877,7 +877,7 @@ fun overatoms f fm b =
     Pre(i,l) => f (Rl(i,l)) b
   | Neg(p) => overatoms f p b
   | Con(p,q) => overatoms f p (overatoms f q b)
-  | Dis(p,q)  => overatoms f p (overatoms f q b)
+  | Dis(p,q) => overatoms f p (overatoms f q b)
   | Imp(p,q) => overatoms f p (overatoms f q b)
   | Iff(p,q) => overatoms f p (overatoms f q b)
   | Uni(_,p) => overatoms f p b
@@ -1129,7 +1129,7 @@ fun var fm =
         unions str_ord (List.map fvt args)
     | Neg p => var p
     | Con (p, q) => union_str (var p) (var q)
-    | Dis  (p, q) => union_str (var p) (var q)
+    | Dis (p, q) => union_str (var p) (var q)
     | Imp (p, q) => union_str (var p) (var q)
     | Iff (p, q) => union_str (var p) (var q)
     | Uni (x, p) => insert_str x (var p)
@@ -1144,7 +1144,7 @@ fun fv fm =
         unions_str (List.map fvt args)
     | Neg p => fv p
     | Con (p, q) => union_str (fv p) (fv q)
-    | Dis  (p, q) => union_str (fv p) (fv q)
+    | Dis (p, q) => union_str (fv p) (fv q)
     | Imp (p, q) => union_str (fv p) (fv q)
     | Iff (p, q) => union_str (fv p) (fv q)
     | Uni (x, p) => subtract_str (fv p) [x]
@@ -1178,7 +1178,7 @@ fun subst subfn fm =
     | Con (p, q) =>
         Con (subst subfn p, subst subfn q)
     | Dis (p, q) =>
-        Dis  (subst subfn p, subst subfn q)
+        Dis (subst subfn p, subst subfn q)
     | Imp (p, q) =>
         Imp (subst subfn p, subst subfn q)
     | Iff (p, q) =>
@@ -2202,7 +2202,7 @@ fun quantforms e fm =
   case fm of
     Neg(p) => quantforms (not e) p
   | Con(p,q) => union_folfm (quantforms e p) (quantforms e q)
-  | Dis(p,q)  => union_folfm (quantforms e p) (quantforms e q)
+  | Dis(p,q) => union_folfm (quantforms e p) (quantforms e q)
   | Imp(p,q) => quantforms e (Dis(Neg p,q))
   | Iff(p,q) => quantforms e (Dis(Con(p,q),Con(Neg p,Neg q)))
   | Exi(_,p) => if e then fm::(quantforms e p) else quantforms e p
@@ -2233,7 +2233,7 @@ fun skolemfuns fm =
 fun form_match fp env =
   case fp of
     (Falsity,Falsity) => env
-  | (Truth,Truth)   => env
+  | (Truth,Truth)     => env
   | (Pre(p,pa),Pre(q,qa)) => term_match env [(Fun(p,pa),Fun(q,qa))]
   | (Neg(p1),Neg(p2)) => form_match (p1,p2) env
   | (Con(p1,q1),Con(p2,q2)) => form_match (p1,p2) (form_match (q1,q2) env)
@@ -2311,7 +2311,7 @@ fun deskolcont thp (env,sks,_) =
       val ssk = sort (decreasing (termsize o snd)) isk
       val vs  = List.map (fn i => Var("Y_"^Int.toString i)) (1--List.length ssk)
       val vfn = replacet(itlist2 (fn (_,t) => fn v => t |---> v) ssk vs undefined)
-      val th = thp(vfn o ifn,onformula vfn (itlist mk_skol ssk Falsity)) in
+      val th  = thp(vfn o ifn,onformula vfn (itlist mk_skol ssk Falsity)) in
   repeat (elim_skolemvar o imp_swap) th
   end;
 
@@ -2571,7 +2571,7 @@ fun auto_tac byfn hyps (g as Goals((_,w)::gls,jfn)) =
 (* ------------------------------------------------------------------------- *)
 
 fun lemma_tac s p byfn hyps (g as Goals((asl,w)::gls,jfn)) =
-  let val tr  = imp_trans(justify byfn hyps p g)
+  let val tr = imp_trans(justify byfn hyps p g)
       val mfn = if asl = [] then tr else imp_unduplicate o tr o shunt in
   Goals(((s,p)::asl,w)::gls,jmodify jfn mfn)
   end
