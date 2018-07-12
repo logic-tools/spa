@@ -1559,8 +1559,8 @@ fun ex_falso p = right_doubleneg(axiom_addimp Falsity (Imp(p,Falsity)));
 (* ------------------------------------------------------------------------- *)
 
 fun imp_trans2 th1 th2 =
-  let val (p,q,r) = case concl th1 of Imp(p,Imp(q,r)) => (p,q,r) | _ => raise Fail "Pattern 1"
-      val s = case concl th2 of Imp(_,s) => s | _ => raise Fail "Pattern 2"
+  let val (p,q,r) = case concl th1 of Imp(p,Imp(q,r)) => (p,q,r) | _ => raise Fail "Bind 1"
+      val s = case concl th2 of Imp(_,s) => s | _ => raise Fail "Bind 2"
       val th = imp_add_assum p (modusponens (imp_trans_th q r s) th2) in
   modusponens th th1
   end;
@@ -2113,7 +2113,7 @@ fun ex_falso' fms (e,s) =
   ex_falso (itlist (mk_imp o onformula e) fms s);
 
 fun complits' (p::fl,lits) i (e,s) =
-  let val (l1,l2) = case chop_list i lits of (l1,_::l2) => (l1,l2) | _ => raise Fail "Pattern 3" in
+  let val (l1,l2) = case chop_list i lits of (l1,_::l2) => (l1,l2) | _ => raise Fail "Bind 3" in
   itlist (imp_insert o onformula e) (fl @ l1)
          (imp_contr (onformula e p)
                     (itlist (mk_imp o onformula e) l2 s))
@@ -2291,7 +2291,7 @@ fun elim_skolemvar th =
     Imp(Imp(pv,(apx as Uni(x,_))),q) =>
         let val (th1,th2) = case List.map (imp_trans(imp_add_concl Falsity th))
                             (imp_false_conseqs pv apx)
-                            of [th1,th2] => (th1,th2) | _ => raise Fail "Pattern 4"
+                            of [th1,th2] => (th1,th2) | _ => raise Fail "Bind 4"
             val v = hd(subtract_str (fv pv) (fv apx) @ [x])
             val th3 = gen_right v th1
             val th4 = imp_trans th3 (alpha x (consequent(concl th3))) in
@@ -2439,7 +2439,7 @@ fun forall_intro_tac y (Goals((asl,(fm as Uni(x,p)))::gls,jfn)) =
 
 fun right_exists x t p =
   let val th = contrapos(ispec t (Uni(x,Neg p)))
-      val p' = case antecedent(concl th) of Neg(Neg p') => p' | _ => raise Fail "Pattern 5" in
+      val p' = case antecedent(concl th) of Neg(Neg p') => p' | _ => raise Fail "Bind 5" in
   end_itlist imp_trans
    [imp_contr p' Falsity, imp_add_concl Falsity (iff_imp1 (axiom_not p')),
     iff_imp2(axiom_not (Neg p')), th, iff_imp2(axiom_exists x p)]
@@ -2583,7 +2583,7 @@ fun lemma_tac s p byfn hyps (g as Goals((asl,w)::gls,jfn)) =
 (* ------------------------------------------------------------------------- *)
 
 fun exists_elim_tac l fm byfn hyps (g as Goals((asl,w)::gls,jfn)) =
-  let val (x,p) = case fm of Exi(x,p) => (x,p) | _ => raise Fail "Pattern 6" in
+  let val (x,p) = case fm of Exi(x,p) => (x,p) | _ => raise Fail "Bind 6" in
   if List.exists (mem x o fv) (w::List.map snd asl)
   then raise Fail "exists_elim_tac: variable free in assumptions" else
   let val th = justify byfn hyps (Exi(x,p)) g
@@ -2614,7 +2614,7 @@ fun ante_disj th1 th2 =
 
 fun disj_elim_tac l fm byfn hyps (g as Goals((asl,w)::gls,jfn) ) =
   let val th = justify byfn hyps fm g
-      val (p,q) = case fm of Dis(p,q) => (p,q) | _ => raise Fail "Pattern 7"
+      val (p,q) = case fm of Dis(p,q) => (p,q) | _ => raise Fail "Bind 7"
       fun jfn' (pth::qth::ths) =
          let val th1 = imp_trans th (ante_disj (shunt pth) (shunt qth)) in
          jfn(imp_unduplicate th1::ths)

@@ -53,11 +53,11 @@ abbreviation (input) \<open>chain l l' p \<equiv> if equal_length l l' then fold
 
 definition modusponens' :: \<open>fm \<Rightarrow> fm \<Rightarrow> fm\<close>
   where
-    \<open>modusponens' s s' \<equiv> case s of Imp p q \<Rightarrow> let p' = s' in if p = p' then q else fail | _ \<Rightarrow> fail\<close>
+    \<open>modusponens' r p' \<equiv> case r of Imp p q \<Rightarrow> if p = p' then q else fail | _ \<Rightarrow> fail\<close>
 
 definition gen' :: \<open>id \<Rightarrow> fm \<Rightarrow> fm\<close>
   where
-    \<open>gen' x s \<equiv> Uni x s\<close>
+    \<open>gen' x p \<equiv> Uni x p\<close>
 
 definition axiom_addimp' :: \<open>fm \<Rightarrow> fm \<Rightarrow> fm\<close>
   where
