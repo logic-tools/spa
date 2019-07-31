@@ -4,6 +4,8 @@
 
 ### Technical University of Denmark
 
+Reference:
+
 *Students' Proof Assistant (SPA)*
 
 Anders Schlichtkrull, Jørgen Villadsen and Andreas Halkjær From
