@@ -4,6 +4,7 @@
 
 ### Technical University of Denmark
 
-For ThEdu'18 Workshop
-
-*Use Isabelle2018*
+*Students' Proof Assistant (SPA)*
+Anders Schlichtkrull, Jørgen Villadsen and Andreas Halkjær From
+Electronic Proceedings in Theoretical Computer Science 290:1–13
+https://eptcs.org/paper.cgi?thedu18.1
